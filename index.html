@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GlidePress Slider — a proper slider block for WordPress</title>
+	<meta name="description" content="GlidePress puts a Swiper-powered slider in the WordPress block editor and stays out of the way. No admin screens, no options table, no assets on pages that don't use it.">
+	<meta property="og:title" content="GlidePress Slider">
+	<meta property="og:description" content="A proper slider block for WordPress. Responsive, accessible, and quiet about it.">
+	<meta property="og:type" content="website">
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232448c8'/%3E%3Crect x='22' y='30' width='36' height='40' fill='%23f5f1e8'/%3E%3Crect x='66' y='30' width='12' height='40' fill='%23f5f1e8' opacity='.5'/%3E%3C/svg%3E">
+	<link rel="stylesheet" href="vendor/swiper-bundle.min.css">
+	<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="site-header">
+	<div class="wrap site-header__inner">
+		<a class="brand" href="#top">GlidePress</a>
+		<nav class="site-nav" aria-label="Site">
+			<a href="#effects">Effects</a>
+			<a href="#details">Details</a>
+			<a href="#editor">Editor</a>
+			<a href="#accessibility">Accessibility</a>
+		</nav>
+	</div>
+</header>
+
+<main id="top">
+
+	<!-- ============================== HERO ============================== -->
+	<section class="hero">
+		<div class="wrap">
+			<p class="kicker">A WordPress block plugin</p>
+			<h1>A proper slider block.</h1>
+			<p class="hero__sub">
+				GlidePress puts a Swiper-powered slider in the block editor and
+				then stays out of the way. No admin screens, no options table,
+				and no assets on pages that don&rsquo;t use it.
+			</p>
+			<p class="hero__meta">WordPress 6.5+ &middot; PHP 7.4+ &middot; Swiper 12 &middot; GPL-2.0</p>
+			<p class="hero__actions">
+				<a class="btn" href="#effects">See it in action</a>
+				<a class="quiet-link" href="#details">or read the details&thinsp;&darr;</a>
+			</p>
+		</div>
+
+		<div class="wrap wrap--wide">
+			<div class="demo-frame demo-frame--hero">
+				<div class="swiper gp-demo" data-gp-effect="slide" data-gp-autoplay="true"
+					role="region" aria-label="Demo slider">
+					<div class="swiper-wrapper">
+						<div class="swiper-slide slide-card slide-card--navy">
+							<small>01 &mdash; Content</small>
+							<span>Put any blocks inside a slide</span>
+						</div>
+						<div class="swiper-slide slide-card slide-card--clay">
+							<small>02 &mdash; Responsive</small>
+							<span>Separate mobile, tablet and desktop settings</span>
+						</div>
+						<div class="swiper-slide slide-card slide-card--moss">
+							<small>03 &mdash; Accessible</small>
+							<span>Keyboard and screen-reader ready</span>
+						</div>
+						<div class="swiper-slide slide-card slide-card--plum">
+							<small>04 &mdash; Lightweight</small>
+							<span>Loads only where a slider exists</span>
+						</div>
+					</div>
+					<button class="swiper-button-prev" aria-label="Previous slide"></button>
+					<button class="swiper-button-next" aria-label="Next slide"></button>
+					<div class="swiper-pagination"></div>
+				</div>
+			</div>
+			<p class="demo-frame__note">
+				Live, not a video &mdash; this page runs the same Swiper&nbsp;12 bundle the plugin ships.
+			</p>
+		</div>
+	</section>
+
+	<!-- ============================ EFFECTS ============================= -->
+	<section class="section" id="effects">
+		<div class="wrap">
+			<h2>Four effects, one dropdown</h2>
+			<p class="section__lead">
+				Transitions are picked per slider in the block sidebar. Each demo
+				below is interactive &mdash; drag it, click the arrows, or focus
+				it and use the arrow keys.
+			</p>
+		</div>
+		<div class="wrap wrap--wide effects-grid">
+			<figure class="demo-frame">
+				<div class="swiper gp-demo" data-gp-effect="slide" role="region" aria-label="Slide effect demo">
+					<div class="swiper-wrapper">
+						<div class="swiper-slide slide-card slide-card--navy"><small>Slide</small><span>One</span></div>
+						<div class="swiper-slide slide-card slide-card--clay"><small>Slide</small><span>Two</span></div>
+						<div class="swiper-slide slide-card slide-card--moss"><small>Slide</small><span>Three</span></div>
+					</div>
+					<button class="swiper-button-prev" aria-label="Previous slide"></button>
+					<button class="swiper-button-next" aria-label="Next slide"></button>
+					<div class="swiper-pagination"></div>
+				</div>
+				<figcaption><b>Slide.</b> The default, and the only effect that supports several slides per view.</figcaption>
+			</figure>
+			<figure class="demo-frame">
+				<div class="swiper gp-demo" data-gp-effect="fade" role="region" aria-label="Fade effect demo">
+					<div class="swiper-wrapper">
+						<div class="swiper-slide slide-card slide-card--clay"><small>Fade</small><span>One</span></div>
+						<div class="swiper-slide slide-card slide-card--plum"><small>Fade</small><span>Two</span></div>
+						<div class="swiper-slide slide-card slide-card--navy"><small>Fade</small><span>Three</span></div>
+					</div>
+					<button class="swiper-button-prev" aria-label="Previous slide"></button>
+					<button class="swiper-button-next" aria-label="Next slide"></button>
+					<div class="swiper-pagination"></div>
+				</div>
+				<figcaption><b>Fade.</b> A cross-fade. The sensible choice for hero banners.</figcaption>
+			</figure>
+			<figure class="demo-frame">
+				<div class="swiper gp-demo" data-gp-effect="flip" role="region" aria-label="Flip effect demo">
+					<div class="swiper-wrapper">
+						<div class="swiper-slide slide-card slide-card--moss"><small>Flip</small><span>One</span></div>
+						<div class="swiper-slide slide-card slide-card--navy"><small>Flip</small><span>Two</span></div>
+						<div class="swiper-slide slide-card slide-card--clay"><small>Flip</small><span>Three</span></div>
+					</div>
+					<button class="swiper-button-prev" aria-label="Previous slide"></button>
+					<button class="swiper-button-next" aria-label="Next slide"></button>
+					<div class="swiper-pagination"></div>
+				</div>
+				<figcaption><b>Flip.</b> A 3D card flip. Use sparingly.</figcaption>
+			</figure>
+			<figure class="demo-frame">
+				<div class="swiper gp-demo" data-gp-effect="creative" role="region" aria-label="Creative effect demo">
+					<div class="swiper-wrapper">
+						<div class="swiper-slide slide-card slide-card--plum"><small>Creative</small><span>One</span></div>
+						<div class="swiper-slide slide-card slide-card--moss"><small>Creative</small><span>Two</span></div>
+						<div class="swiper-slide slide-card slide-card--navy"><small>Creative</small><span>Three</span></div>
+					</div>
+					<button class="swiper-button-prev" aria-label="Previous slide"></button>
+					<button class="swiper-button-next" aria-label="Next slide"></button>
+					<div class="swiper-pagination"></div>
+				</div>
+				<figcaption><b>Creative.</b> Layered depth-and-slide. The fancy one.</figcaption>
+			</figure>
+		</div>
+	</section>
+
+	<!-- ============================ DETAILS ============================= -->
+	<section class="section section--rule" id="details">
+		<div class="wrap wrap--wide">
+			<h2>The boring parts, handled</h2>
+			<dl class="details">
+				<div class="details__row">
+					<dt>Responsive tiers</dt>
+					<dd>Slides per view and spacing are set separately for mobile,
+					tablet and desktop. The breakpoints are fixed at 768&nbsp;px and
+					1024&nbsp;px, so your theme can rely on them.</dd>
+				</div>
+				<div class="details__row">
+					<dt>Accessibility</dt>
+					<dd>Keyboard navigation and screen-reader announcements come
+					from Swiper&rsquo;s A11y module. Inactive slides are made
+					<code>inert</code>, which keeps their links out of the tab order
+					instead of merely hiding them.</dd>
+				</div>
+				<div class="details__row">
+					<dt>Autoplay that behaves</dt>
+					<dd>Optional looping autoplay pauses on hover and stands down
+					entirely for anyone with <code>prefers-reduced-motion</code>
+					set. That includes the demos on this page.</dd>
+				</div>
+				<div class="details__row">
+					<dt>Styling controls</dt>
+					<dd>Arrow and pagination colours, sizes and radii, equal-height
+					slides, and an overflow &ldquo;peek&rdquo; mode that shows a
+					sliver of the neighbouring slides.</dd>
+				</div>
+				<div class="details__row">
+					<dt>Nothing loads for nothing</dt>
+					<dd>These are static blocks &mdash; no server-side rendering,
+					no database options, no settings screen. Scripts and styles are
+					enqueued only on pages that actually contain a slider.</dd>
+				</div>
+				<div class="details__row">
+					<dt>Suspicious by default</dt>
+					<dd>The slider&rsquo;s configuration lives in post content, so
+					the frontend treats it as untrusted: options are rebuilt from an
+					allowlist rather than handed to Swiper as parsed JSON.</dd>
+				</div>
+			</dl>
+		</div>
+	</section>
+
+	<!-- ======================= EDITOR EXPERIENCE ======================== -->
+	<section class="section" id="editor">
+		<div class="wrap wrap--wide editor-split">
+			<div class="editor-split__copy">
+				<h2>It lives in the block editor</h2>
+				<p>
+					Two blocks: <b>GlidePress Slider</b> and <b>GlidePress
+					Slide</b>. A slide takes whatever blocks you put in it &mdash;
+					images, headings, buttons, columns &mdash; and everything is
+					configured from the sidebar you already know. There is no
+					settings page to go looking for, because there is no settings
+					page.
+				</p>
+				<ul class="plain-list">
+					<li>Live preview while you edit</li>
+					<li>Wide and full alignment support</li>
+					<li>Any inner blocks inside a slide</li>
+				</ul>
+			</div>
+			<div class="inspector" aria-hidden="true">
+				<div class="inspector__title">GlidePress Slider</div>
+				<div class="inspector__panel">
+					<div class="inspector__row"><span>Effect</span><span class="inspector__select">Creative &#9662;</span></div>
+					<div class="inspector__row"><span>Speed</span><span class="inspector__select">300&nbsp;ms</span></div>
+					<div class="inspector__row"><span>Loop</span><span class="inspector__toggle inspector__toggle--on"></span></div>
+					<div class="inspector__row"><span>Autoplay</span><span class="inspector__toggle inspector__toggle--on"></span></div>
+					<div class="inspector__row"><span>Arrows</span><span class="inspector__toggle inspector__toggle--on"></span></div>
+					<div class="inspector__row"><span>Pagination</span><span class="inspector__toggle"></span></div>
+				</div>
+				<div class="inspector__panel">
+					<div class="inspector__heading">Slides per view</div>
+					<div class="inspector__row"><span>Mobile</span><span class="inspector__range"><i style="width:25%"></i></span></div>
+					<div class="inspector__row"><span>Tablet</span><span class="inspector__range"><i style="width:50%"></i></span></div>
+					<div class="inspector__row"><span>Desktop</span><span class="inspector__range"><i style="width:75%"></i></span></div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ========================= ACCESSIBILITY ========================== -->
+	<section class="section section--rule" id="accessibility">
+		<div class="wrap">
+			<h2>Check the accessibility yourself</h2>
+			<p class="section__lead">
+				Press <kbd>Tab</kbd> until the slider below has focus, then use
+				<kbd>&larr;</kbd> and <kbd>&rarr;</kbd>. Slide changes are announced
+				to screen readers. This isn&rsquo;t special demo behaviour &mdash;
+				every GlidePress slider works this way.
+			</p>
+		</div>
+		<div class="wrap wrap--wide">
+			<div class="demo-frame">
+				<div class="swiper gp-demo" data-gp-effect="slide" role="region" aria-label="Keyboard navigation demo">
+					<div class="swiper-wrapper">
+						<div class="swiper-slide slide-card slide-card--navy"><small>Try it</small><span>Focus me, then press &rarr;</span></div>
+						<div class="swiper-slide slide-card slide-card--moss"><small>Keyboard</small><span>That was the keyboard module</span></div>
+						<div class="swiper-slide slide-card slide-card--plum"><small>Screen readers</small><span>And this change was announced</span></div>
+					</div>
+					<button class="swiper-button-prev" aria-label="Previous slide"></button>
+					<button class="swiper-button-next" aria-label="Next slide"></button>
+					<div class="swiper-pagination"></div>
+				</div>
+			</div>
+		</div>
+		<div class="wrap">
+			<p class="footnote">
+				Also: pagination is never hidden from assistive technology while it
+				contains focusable buttons, and a slider saved without an ARIA
+				label falls back to a localised default rather than nothing.
+			</p>
+		</div>
+	</section>
+
+</main>
+
+<footer class="site-footer">
+	<div class="wrap site-footer__inner">
+		<p>
+			GlidePress Slider is free software,
+			<abbr title="GNU General Public License">GPL</abbr>-2.0-or-later.
+		</p>
+		<p>
+			Built on <a href="https://swiperjs.com/" rel="external">Swiper</a>
+			for <a href="https://wordpress.org/" rel="external">WordPress</a>.
+		</p>
+	</div>
+</footer>
+
+<script src="vendor/swiper-bundle.min.js" defer></script>
+<script src="assets/site.js" defer></script>
+</body>
+</html>
