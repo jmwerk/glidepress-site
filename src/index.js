@@ -275,9 +275,8 @@ const ADMIN_PAGE = `<!doctype html>
         <tbody id="rows"></tbody>
       </table>
     </fieldset>
-  </div>
 
-  <fieldset class="guide">
+    <fieldset class="guide">
     <legend>Guide</legend>
 
     <details open>
@@ -350,7 +349,8 @@ wp plugin activate glidepress-slider   # or via wp-admin &rarr; Plugins</code></
         <code>composer/installers</code> or the <code>installer-paths</code> block.</li>
       </ul>
     </details>
-  </fieldset>
+    </fieldset>
+  </div>
 
   <p id="status" class="muted"></p>
 </main>
