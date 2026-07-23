@@ -24,6 +24,11 @@ code { font-family: ui-monospace, monospace; font-size: .85rem; }
              overflow-wrap: anywhere; }
 .muted { opacity: .65; font-size: .85rem; }
 .danger { color: #c0392b; }
+.ok { color: #27ae60; }
+.badge { display: inline-block; font-size: .7rem; font-weight: 600; line-height: 1;
+         padding: .25em .5em; border-radius: 999px; vertical-align: middle;
+         background: color-mix(in srgb, LinkText 15%, Canvas);
+         border: 1px solid color-mix(in srgb, LinkText 40%, transparent); }
 #status { min-height: 1.4em; }
 .hidden { display: none; }
 details { border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);

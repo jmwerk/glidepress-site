@@ -13,6 +13,8 @@
  *   GET    /admin/api/tokens                  List tokens
  *   POST   /admin/api/tokens {label}          Create a token
  *   DELETE /admin/api/tokens/<id>             Revoke a token (id from the list)
+ *   GET    /admin/api/versions                List published releases + dist status
+ *   DELETE /admin/api/versions/<version>      Pull a release (zip + version entry)
  *
  * KV schema (binding REPO):
  *   token:<sha256-hex-of-token> -> JSON { "label": "...", "created": "...", "prefix": "gp_1234567",
@@ -280,6 +282,42 @@ async function handleAdmin(request, env, url) {
 	const match = url.pathname.match(/^\/admin\/api\/tokens\/([0-9a-f]{64}|gp_[0-9a-f]+)$/);
 	if (match && request.method === "DELETE") {
 		await env.REPO.delete(`token:${match[1]}`);
+		return json({ ok: true });
+	}
+
+	if (url.pathname === "/admin/api/versions") {
+		if (request.method !== "GET") return json({ error: "method not allowed" }, 405);
+		const versions = (await env.REPO.get("versions", "json")) || [];
+		// One list call instead of a get per version: dist presence for every
+		// release at once, plus the zip size when the publisher stored it in KV
+		// metadata (older releases may predate that and report size: null).
+		const dists = new Map();
+		let cursor;
+		do {
+			const page = await env.REPO.list({ prefix: "dist:", cursor });
+			for (const k of page.keys) {
+				dists.set(k.name.slice("dist:".length), k.metadata?.size ?? null);
+			}
+			cursor = page.list_complete ? undefined : page.cursor;
+		} while (cursor);
+		const releases = versions
+			.map((v) => ({ ...v, dist: dists.has(v.version), size: dists.get(v.version) ?? null }))
+			.sort((a, b) => (b.time || "").localeCompare(a.time || ""));
+		return json(releases);
+	}
+
+	// Same version charset the dist download route accepts.
+	const versionMatch = url.pathname.match(/^\/admin\/api\/versions\/([\w.-]+)$/);
+	if (versionMatch && request.method === "DELETE") {
+		const version = versionMatch[1];
+		const versions = (await env.REPO.get("versions", "json")) || [];
+		const remaining = versions.filter((v) => v.version !== version);
+		// Delete the zip unconditionally so an orphaned dist blob (publish that
+		// half-failed) can be cleaned up too; idempotent like the token delete.
+		await env.REPO.delete(`dist:${version}`);
+		if (remaining.length !== versions.length) {
+			await env.REPO.put("versions", JSON.stringify(remaining));
+		}
 		return json({ ok: true });
 	}
 

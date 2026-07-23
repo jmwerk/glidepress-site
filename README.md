@@ -11,12 +11,19 @@ One Cloudflare Worker serving two things on the same domain:
   token). Package zips and version metadata live in Workers KV — releases are
   published into KV by the plugin repo's CI, so deploying this Worker is never
   needed to ship a plugin version.
-- **`/admin`** — token management UI (create / list / revoke). The page itself
-  is a static asset (`public/admin/`); it talks to the Worker's `/admin/api/*`
-  JSON routes, unlocked with the `ADMIN_KEY` worker secret. Each token's row
-  shows when it was last used and how many dist downloads it has made
-  (approximate — KV is last-write-wins on concurrent updates; to limit KV
-  writes, metadata polls update "last used" at most once per day).
+- **`/admin`** — admin UI. The page itself is a static asset
+  (`public/admin/`); it talks to the Worker's `/admin/api/*` JSON routes,
+  unlocked with the `ADMIN_KEY` worker secret. Two panels:
+  - **Tokens** (create / list / revoke). Each token's row shows when it was
+    last used and how many dist downloads it has made (approximate — KV is
+    last-write-wins on concurrent updates; to limit KV writes, metadata polls
+    update "last used" at most once per day).
+  - **Published releases** (read-only list + delete). Shows every version from
+    KV, newest first with the latest flagged, and whether its dist zip is
+    actually present (single KV `list` on the `dist:` prefix, with the zip size
+    when the publisher stored it in KV metadata). *Delete* pulls a bad release:
+    it permanently removes the zip and the version entry — consumers pinned to
+    that version will fail to install/update until they repin.
 
 ## Rate limiting
 
@@ -50,11 +57,13 @@ npm test
 
 Tests run with [Vitest](https://vitest.dev/) inside the actual Workers runtime
 via [`@cloudflare/vitest-pool-workers`](https://developers.cloudflare.com/workers/testing/vitest-integration/),
-with bindings taken from `wrangler.toml` (KV is isolated per test). Covered:
-Composer auth (401 challenge, valid-token `packages.json` shape, dist
-downloads), the no-challenge 404 for stray paths, per-token usage tracking
-(last-used / download counts and the daily write-skip), and the admin token
-API (create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`).
+with bindings taken from `wrangler.toml` (KV state persists across tests
+within a run, so tests seed distinct keys). Covered: Composer auth (401
+challenge, valid-token `packages.json` shape, dist downloads), the
+no-challenge 404 for stray paths, per-token usage tracking (last-used /
+download counts and the daily write-skip), the admin token API
+(create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`), and the
+admin versions API (list with dist presence/size, release deletion).
 
 ## Deploy
 

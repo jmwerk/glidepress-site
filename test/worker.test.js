@@ -1,7 +1,8 @@
 /**
  * Tests for the glidepress-site Worker. Runs inside workerd via
  * @cloudflare/vitest-pool-workers; `env` carries the real bindings from
- * wrangler.toml (REPO KV is isolated and reset between tests).
+ * wrangler.toml. REPO KV state persists across tests within a run, so tests
+ * seed distinct keys (or overwrite) rather than assuming a clean namespace.
  *
  * The worker is invoked unit-style (imported default export) so each test can
  * shape `env`: adding/omitting the ADMIN_KEY secret, and stubbing
@@ -236,6 +237,51 @@ describe("Admin API", () => {
 		const res = await fetchWorker(`/admin/api/tokens/${id}`, { method: "DELETE", headers: bearer }, withAdmin);
 		expect(res.status).toBe(200);
 		expect(await env.REPO.get(`token:${id}`)).toBeNull();
+	});
+
+	it("GET /admin/api/versions lists releases newest first with dist presence and size", async () => {
+		// Versions distinct from other tests' — dist: keys persist across tests.
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([
+				{ version: "3.0.0", sha1: "a".repeat(40), time: "2026-01-01T00:00:00+00:00" },
+				{ version: "3.1.0", sha1: "b".repeat(40), time: "2026-02-01T00:00:00+00:00" },
+			])
+		);
+		// 3.1.0's zip carries a size in KV metadata; 3.0.0 has no zip at all.
+		await env.REPO.put("dist:3.1.0", new Uint8Array([0x50, 0x4b, 0x03, 0x04]), {
+			metadata: { size: 4 },
+		});
+
+		const res = await fetchWorker("/admin/api/versions", { headers: bearer }, withAdmin);
+		expect(res.status).toBe(200);
+		const releases = await res.json();
+		expect(releases.map((r) => r.version)).toEqual(["3.1.0", "3.0.0"]);
+		expect(releases[0]).toMatchObject({ version: "3.1.0", sha1: "b".repeat(40), dist: true, size: 4 });
+		expect(releases[1]).toMatchObject({ version: "3.0.0", dist: false, size: null });
+	});
+
+	it("GET /admin/api/versions requires the Bearer ADMIN_KEY", async () => {
+		const res = await fetchWorker("/admin/api/versions", {}, withAdmin);
+		expect(res.status).toBe(401);
+	});
+
+	it("DELETE /admin/api/versions/<version> removes the zip and the version entry, keeping others", async () => {
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([
+				{ version: "1.0.0", sha1: "a".repeat(40), time: "2026-01-01T00:00:00+00:00" },
+				{ version: "1.1.0", sha1: "b".repeat(40), time: "2026-02-01T00:00:00+00:00" },
+			])
+		);
+		await env.REPO.put("dist:1.1.0", new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+
+		const res = await fetchWorker("/admin/api/versions/1.1.0", { method: "DELETE", headers: bearer }, withAdmin);
+		expect(res.status).toBe(200);
+
+		expect(await env.REPO.get("dist:1.1.0")).toBeNull();
+		const remaining = await env.REPO.get("versions", "json");
+		expect(remaining.map((v) => v.version)).toEqual(["1.0.0"]);
 	});
 
 	it("adminAuthorized returns false when ADMIN_KEY is unset", () => {
