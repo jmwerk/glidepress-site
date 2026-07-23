@@ -233,6 +233,15 @@ const ADMIN_PAGE = `<!doctype html>
   .danger { color: #c0392b; }
   #status { min-height: 1.4em; }
   .hidden { display: none; }
+  details { border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+            border-radius: 8px; padding: .6rem .9rem; margin: .6rem 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details[open] summary { margin-bottom: .5rem; }
+  pre { background: color-mix(in srgb, CanvasText 8%, Canvas); padding: .7rem .9rem;
+        border-radius: 6px; overflow-x: auto; font-size: .85rem; line-height: 1.45; }
+  pre code { font-size: inherit; }
+  .guide ol { padding-left: 1.3rem; }
+  .guide li { margin: .3rem 0; }
 </style>
 </head>
 <body>
@@ -268,12 +277,92 @@ const ADMIN_PAGE = `<!doctype html>
     </fieldset>
   </div>
 
+  <fieldset class="guide">
+    <legend>Guide</legend>
+
+    <details open>
+      <summary>What this page is for</summary>
+      <p>The GlidePress plugin is installed on WordPress sites with
+      <a href="https://getcomposer.org" rel="noopener">Composer</a>, from the private
+      package repo on this same domain. A <strong>token is the password</strong> that
+      lets one site (or person) access that repo. Create one token per site/client —
+      then you can revoke a single site's access without touching the others.</p>
+    </details>
+
+    <details>
+      <summary>Walkthrough: onboard a new site</summary>
+      <ol>
+        <li><strong>Create a token above</strong> with a label that names the site or
+        client (e.g. <code>client-acme</code>). Two copy buttons appear: the raw token
+        and a ready-made <code>composer config</code> command.</li>
+        <li><strong>Send both snippets below</strong> to whoever manages that site,
+        through a private channel (password manager share &mdash; not plain email if
+        avoidable).</li>
+        <li>On the site, they add the repo and plugin to the
+        <code>composer.json</code> in the WordPress root:
+<pre><code>{
+    "repositories": [
+        { "type": "composer", "url": "https://<span class="host"></span>" }
+    ],
+    "require": {
+        "composer/installers": "^2.0",
+        "glidepress/glidepress-slider": "^2.1"
+    },
+    "extra": {
+        "installer-paths": {
+            "wp-content/plugins/{$name}/": ["type:wordpress-plugin"]
+        }
+    }
+}</code></pre></li>
+        <li>They store the credentials once (outside the project, never committed):
+<pre><code>composer config --global http-basic.<span class="host"></span> token &lt;TOKEN&gt;</code></pre></li>
+        <li>Install and activate:
+<pre><code>composer install
+wp plugin activate glidepress-slider   # or via wp-admin &rarr; Plugins</code></pre></li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>Updates &amp; new releases</summary>
+      <p>Releases are published automatically when a version tag is pushed to the
+      plugin repo (<code>npm run release -- patch</code> there). Nothing to do on this
+      page. Consumers pull the newest allowed version with:</p>
+      <pre><code>composer update glidepress/glidepress-slider</code></pre>
+    </details>
+
+    <details>
+      <summary>Revoking access</summary>
+      <p>Click <em>Revoke</em> next to a token. The site using it loses access within
+      about a minute (edge cache propagation) &mdash; its next
+      <code>composer install/update</code> fails with a 401. The plugin already
+      installed on that site keeps working; revocation only stops future downloads.
+      To restore access, create a fresh token and send it over.</p>
+    </details>
+
+    <details>
+      <summary>Troubleshooting a consumer</summary>
+      <ul>
+        <li><code>401 Could not authenticate</code> &mdash; token missing, mistyped, or
+        revoked; redo the <code>composer config</code> step.</li>
+        <li><code>Could not find package</code> &mdash; the <code>repositories</code>
+        entry is missing from their <code>composer.json</code>.</li>
+        <li>Plugin ends up in <code>vendor/</code> &mdash; they're missing
+        <code>composer/installers</code> or the <code>installer-paths</code> block.</li>
+      </ul>
+    </details>
+  </fieldset>
+
   <p id="status" class="muted"></p>
 </main>
 <script>
 (function () {
   var KEY = "gp-admin-key";
   var statusEl = document.getElementById("status");
+
+  // Fill in the current host wherever the guide references it.
+  document.querySelectorAll(".host").forEach(function (el) {
+    el.textContent = location.host;
+  });
 
   function api(method, path, body) {
     return fetch(path, {
