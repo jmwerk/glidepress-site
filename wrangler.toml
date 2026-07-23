@@ -5,8 +5,16 @@ compatibility_date = "2026-07-01"
 # Static showcase site (including the admin UI at public/admin/). Matching
 # assets are served before the Worker runs, so the Worker only ever sees
 # non-asset paths (/packages.json, /dist/*, /admin/api/*).
+#
+# not_found_handling: browser navigations (Sec-Fetch-Mode: navigate) to
+# unmatched paths get public/404.html without invoking the Worker (the
+# assets_navigation_prefers_asset_serving flag is default-on for our
+# compatibility_date). Non-navigation requests — Composer fetching
+# /packages.json and /dist/*, the admin UI calling /admin/api/* — still
+# invoke the Worker as before.
 [assets]
 directory = "./public"
+not_found_handling = "404-page"
 
 [[kv_namespaces]]
 binding = "REPO"

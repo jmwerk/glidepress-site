@@ -5,7 +5,11 @@ One Cloudflare Worker serving two things on the same domain:
 - **`/`** — the static showcase site (`public/`, no build step: plain HTML, CSS
   and JS, plus the same Swiper 12 bundle the plugin ships, vendored into
   `public/vendor/`). Served via Workers static assets; `public/_headers`
-  configures security headers and caching.
+  configures security headers and caching. `not_found_handling = "404-page"`
+  serves `public/404.html` for browser navigations to unknown paths *without*
+  invoking the Worker — non-navigation requests (Composer, the admin UI's
+  `fetch()` calls) still reach the Worker as usual (see the comment in
+  `wrangler.toml`).
 - **`/packages.json`, `/dist/*.zip`** — the private Composer repository for
   `glidepress/glidepress-slider` (HTTP basic auth; the password is an access
   token). Package zips and version metadata live in Workers KV — releases are
