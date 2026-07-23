@@ -427,6 +427,125 @@ describe("Live demo", () => {
 		expect(res.headers.get("Access-Control-Allow-Private-Network")).toBeNull();
 	});
 
+	/**
+	 * Runs the seeded editor script against a stubbed `wp`, so the logic that
+	 * decides whether to insert the showcase is covered here rather than only
+	 * in a browser. The first version of this script called a selector that
+	 * doesn't exist on every WordPress version and threw silently on every
+	 * poll — the editor just stayed empty, which is why these exist.
+	 */
+	async function runSeed({ editorOverrides = {}, blocks = [], blockRegistered = true } = {}) {
+		await seedReleases();
+		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
+		const source = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
+
+		const calls = { resetBlocks: null, editPost: null, selected: null, notices: [] };
+		const editor = {
+			getCurrentPost: () => ({ id: 4, status: "auto-draft" }),
+			isCleanNewPost: () => true,
+			...editorOverrides,
+		};
+		const dispatchers = {
+			"core/editor": {
+				editPost: (data) => (calls.editPost = data),
+				openGeneralSidebar: () => {},
+			},
+			"core/block-editor": {
+				resetBlocks: (b) => (calls.resetBlocks = b),
+				selectBlock: (id) => (calls.selected = id),
+			},
+			"core/preferences": { set: () => {} },
+			"core/notices": { createNotice: (type, text) => calls.notices.push({ type, text }) },
+		};
+
+		let clientId = 0;
+		const wp = {
+			domReady: (callback) => callback(),
+			blocks: {
+				getBlockType: (name) => (blockRegistered || !name.startsWith("glidepress/") ? { name } : null),
+				createBlock: (name, attributes, innerBlocks = []) => ({
+					name,
+					attributes,
+					innerBlocks,
+					clientId: `id-${++clientId}`,
+				}),
+			},
+			data: {
+				select: (store) =>
+					store === "core/editor" ? editor : { getBlocks: () => blocks },
+				dispatch: (store) => dispatchers[store],
+			},
+		};
+
+		const timers = [];
+		const run = new Function(
+			"window",
+			"wp",
+			"setInterval",
+			"clearInterval",
+			"console",
+			source
+		);
+		run(
+			{ wp, console },
+			wp,
+			(fn) => {
+				timers.push(fn);
+				return timers.length;
+			},
+			() => {},
+			{ log: () => {} }
+		);
+
+		return calls;
+	}
+
+	it("seeds the document on a clean new post", async () => {
+		const calls = await runSeed();
+
+		expect(calls.editPost).toEqual({ title: "GlidePress kitchen sink" });
+		expect(calls.resetBlocks).not.toBeNull();
+
+		const sliders = calls.resetBlocks.filter((b) => b.name === "glidepress/slider");
+		expect(sliders).toHaveLength(12);
+		// Every slider holds slides, and every slide holds real content blocks.
+		for (const slider of sliders) {
+			expect(slider.innerBlocks.length).toBeGreaterThan(2);
+			for (const slide of slider.innerBlocks) {
+				expect(slide.name).toBe("glidepress/slide");
+				expect(slide.innerBlocks.length).toBeGreaterThan(0);
+			}
+		}
+		// The inspector should open on a slider, not the intro paragraph.
+		expect(calls.selected).toBe(sliders[0].clientId);
+		expect(calls.notices).toEqual([]);
+	});
+
+	it("still seeds when isCleanNewPost is missing from core/editor", async () => {
+		// The exact shape that broke it live: the selector was removed, the
+		// blind call threw on every poll, and the editor stayed empty.
+		const calls = await runSeed({ editorOverrides: { isCleanNewPost: undefined } });
+		expect(calls.resetBlocks).not.toBeNull();
+		expect(calls.notices).toEqual([]);
+	});
+
+	it("leaves a post that already has content alone", async () => {
+		const calls = await runSeed({
+			blocks: [{ name: "core/paragraph", attributes: { content: "my own work" } }],
+		});
+		expect(calls.resetBlocks).toBeNull();
+		expect(calls.editPost).toBeNull();
+		// Not a failure — nothing to report to the visitor.
+		expect(calls.notices).toEqual([]);
+	});
+
+	it("seeds over the single empty paragraph a new post can start with", async () => {
+		const calls = await runSeed({
+			blocks: [{ name: "core/paragraph", attributes: { content: "" } }],
+		});
+		expect(calls.resetBlocks).not.toBeNull();
+	});
+
 	it("404s the zip when the newest release has no archive in KV", async () => {
 		await env.REPO.put(
 			"versions",

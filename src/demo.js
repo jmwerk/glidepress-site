@@ -455,6 +455,11 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 	}
 
 	var timer = null;
+	var tries = 0;
+	// Why the last attempt didn't seed. Surfaced in the editor if we give up:
+	// the first version of this failed silently and looked identical to a
+	// plugin that hadn't installed.
+	var blocked = 'nothing attempted yet';
 
 	function stop() {
 		if ( timer ) {
@@ -463,33 +468,91 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 		}
 	}
 
-	function seed() {
-		if ( ! window.wp || ! wp.data || ! wp.blocks ) {
+	function log( message ) {
+		if ( window.console && console.log ) {
+			console.log( '[GlidePress demo] ' + message );
+		}
+	}
+
+	/**
+	 * The onboarding modal covers the post the moment it is seeded, which is
+	 * the opposite of what a demo wants. The preference scope moved between
+	 * WordPress versions, so set both.
+	 */
+	function dismissWelcomeGuide() {
+		var preferences = wp.data.dispatch( 'core/preferences' );
+		if ( ! preferences || ! preferences.set ) {
 			return;
+		}
+		[ 'core/edit-post', 'core' ].forEach( function ( scope ) {
+			try {
+				preferences.set( scope, 'welcomeGuide', false );
+			} catch ( error ) {
+				// Scope doesn't exist on this version; the other one will.
+			}
+		} );
+	}
+
+	/**
+	 * @return {string} 'seeded' when the document was inserted, 'skip' when
+	 * there is deliberately nothing to do, 'wait' to try again.
+	 */
+	function trySeed() {
+		if ( ! window.wp || ! wp.data || ! wp.blocks ) {
+			blocked = 'the wp.data and wp.blocks packages have not loaded';
+			return 'wait';
 		}
 		// The plugin registers its blocks from block.json on editor load;
 		// until that has happened createBlock would produce invalid blocks.
 		if ( ! wp.blocks.getBlockType( 'glidepress/slider' ) ) {
-			return;
+			blocked =
+				'the glidepress/slider block never registered, so the plugin did not install or activate';
+			return 'wait';
 		}
 		var editor = wp.data.select( 'core/editor' );
 		var blockEditor = wp.data.select( 'core/block-editor' );
 		if ( ! editor || ! blockEditor ) {
-			return;
+			blocked = 'the core/editor and core/block-editor stores are not ready';
+			return 'wait';
 		}
-		// No current post yet means the editor is still starting up: keep
-		// waiting rather than treating it as "not a clean new post".
+		// No current post yet means the editor is still starting up.
 		var post = editor.getCurrentPost && editor.getCurrentPost();
 		if ( ! post || ! post.id ) {
-			return;
+			blocked = 'no post is loaded yet';
+			return 'wait';
 		}
-		// Only ever seed an untouched new post. Anything the visitor has
-		// edited, and any post they open later, is left completely alone.
-		if ( ! editor.isCleanNewPost() ) {
-			stop();
-			return;
+
+		// Never overwrite anyone's work. An untouched new post is empty, or
+		// holds the single empty paragraph some versions start you with.
+		var existing = blockEditor.getBlocks();
+		var isEmpty =
+			existing.length === 0 ||
+			( existing.length === 1 &&
+				existing[ 0 ].name === 'core/paragraph' &&
+				! String(
+					( existing[ 0 ].attributes &&
+						existing[ 0 ].attributes.content ) ||
+						''
+				).trim() );
+
+		if ( ! isEmpty ) {
+			blocked = 'the post already has content';
+			return 'skip';
 		}
-		stop();
+
+		// isCleanNewPost has come and gone between versions, so it is a
+		// bonus check rather than a gate — calling it blind is what broke
+		// the first version of this script.
+		if (
+			typeof editor.isCleanNewPost === 'function' &&
+			! editor.isCleanNewPost() &&
+			post.status !== 'auto-draft'
+		) {
+			blocked = 'the post is not a clean new post';
+			return 'skip';
+		}
+
+		dismissWelcomeGuide();
 
 		var blocks = buildDocument();
 		wp.data.dispatch( 'core/editor' ).editPost( {
@@ -519,22 +582,59 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			dispatcher.openGeneralSidebar( 'edit-post/block' );
 			return true;
 		} );
+
+		return 'seeded';
+	}
+
+	/** Report a give-up in the editor itself, not just the console. */
+	function report() {
+		var message =
+			'The GlidePress demo could not build its showcase post: ' +
+			blocked +
+			'. The editor is otherwise fine — add a GlidePress Slider block ' +
+			'yourself from the inserter.';
+		log( message );
+		var notices = wp.data.dispatch( 'core/notices' );
+		if ( notices && notices.createNotice ) {
+			notices.createNotice( 'warning', message, { isDismissible: true } );
+		}
 	}
 
 	wp.domReady( function () {
 		// Poll rather than subscribe: the editor stores register in an order
 		// that has changed between WordPress versions, and a poll that finds
-		// nothing simply tries again. Gives up after ~15s.
-		var tries = 0;
-		timer = setInterval( function () {
+		// nothing simply tries again. ~30s, which is generous even for a cold
+		// Playground boot on a slow machine.
+		function tick() {
 			tries++;
-			if ( tries > 100 ) {
+			var state;
+			try {
+				state = trySeed();
+			} catch ( error ) {
+				// Without this, a selector that has been removed upstream
+				// throws every 150ms and the demo looks like it did nothing.
+				blocked = 'it threw — ' + ( error && error.message );
+				state = 'wait';
+			}
+
+			if ( state === 'seeded' ) {
 				stop();
+				log( 'seeded the kitchen sink' );
 				return;
 			}
-			seed();
-		}, 150 );
-		seed();
+			if ( state === 'skip' ) {
+				stop();
+				log( 'nothing to do: ' + blocked );
+				return;
+			}
+			if ( tries > 200 ) {
+				stop();
+				report();
+			}
+		}
+
+		timer = setInterval( tick, 150 );
+		tick();
 	} );
 } )();
 `;
