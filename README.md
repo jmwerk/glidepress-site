@@ -11,8 +11,9 @@ One Cloudflare Worker serving two things on the same domain:
   token). Package zips and version metadata live in Workers KV — releases are
   published into KV by the plugin repo's CI, so deploying this Worker is never
   needed to ship a plugin version.
-- **`/admin`** — token management UI (create / list / revoke), unlocked with the
-  `ADMIN_KEY` worker secret.
+- **`/admin`** — token management UI (create / list / revoke). The page itself
+  is a static asset (`public/admin/`); it talks to the Worker's `/admin/api/*`
+  JSON routes, unlocked with the `ADMIN_KEY` worker secret.
 
 ## Rate limiting
 

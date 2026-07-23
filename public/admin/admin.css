@@ -1,0 +1,37 @@
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 2rem 1rem;
+       background: Canvas; color: CanvasText; }
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 1.3rem; }
+fieldset { border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+           border-radius: 8px; padding: 1rem; margin: 0 0 1.5rem; }
+legend { padding: 0 .4rem; font-weight: 600; }
+input { font: inherit; padding: .45rem .6rem; border-radius: 6px;
+        border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+        background: Field; color: FieldText; width: 100%; max-width: 26rem; }
+button { font: inherit; padding: .45rem .9rem; border-radius: 6px; cursor: pointer;
+         border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+         background: ButtonFace; color: ButtonText; }
+button:hover { filter: brightness(1.08); }
+.row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+table { border-collapse: collapse; width: 100%; margin-top: .5rem; }
+th, td { text-align: left; padding: .45rem .6rem; font-size: .92rem;
+         border-bottom: 1px solid color-mix(in srgb, CanvasText 15%, transparent); }
+code { font-family: ui-monospace, monospace; font-size: .85rem; }
+.new-token { margin-top: 1rem; padding: 1rem; border-radius: 8px;
+             background: color-mix(in srgb, LinkText 12%, Canvas);
+             overflow-wrap: anywhere; }
+.muted { opacity: .65; font-size: .85rem; }
+.danger { color: #c0392b; }
+#status { min-height: 1.4em; }
+.hidden { display: none; }
+details { border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+          border-radius: 8px; padding: .6rem .9rem; margin: .6rem 0; }
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: .5rem; }
+pre { background: color-mix(in srgb, CanvasText 8%, Canvas); padding: .7rem .9rem;
+      border-radius: 6px; overflow-x: auto; font-size: .85rem; line-height: 1.45; }
+pre code { font-size: inherit; }
+.guide ol { padding-left: 1.3rem; }
+.guide li { margin: .3rem 0; }

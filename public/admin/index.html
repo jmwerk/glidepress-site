@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GlidePress Composer tokens</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<main>
+  <h1>GlidePress Composer &mdash; access tokens</h1>
+
+  <fieldset id="login-box">
+    <legend>Admin key</legend>
+    <div class="row">
+      <input id="admin-key" type="password" placeholder="paste admin key" autocomplete="current-password">
+      <button id="login-btn">Unlock</button>
+    </div>
+    <p class="muted">The key is kept in this tab only (sessionStorage) and sent as a
+    Bearer header to this same host. Nothing leaves this domain.</p>
+  </fieldset>
+
+  <div id="app" class="hidden">
+    <fieldset>
+      <legend>Create token</legend>
+      <div class="row">
+        <input id="label" placeholder="label, e.g. client-acme" maxlength="64">
+        <button id="create-btn">Create</button>
+      </div>
+      <div id="new-token" class="new-token hidden"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Existing tokens</legend>
+      <table>
+        <thead><tr><th>Label</th><th>Token</th><th>Created</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="muted">Only a hash of each token is stored, so a full token can't be
+      shown again after creation. If one is lost, revoke it and create a new one.</p>
+    </fieldset>
+
+    <fieldset class="guide">
+    <legend>Guide</legend>
+
+    <details open>
+      <summary>What this page is for</summary>
+      <p>The GlidePress plugin is installed on WordPress sites with
+      <a href="https://getcomposer.org" rel="noopener">Composer</a>, from the private
+      package repo on this same domain. A <strong>token is the password</strong> that
+      lets one site (or person) access that repo. Create one token per site/client &mdash;
+      then you can revoke a single site's access without touching the others.</p>
+    </details>
+
+    <details>
+      <summary>Walkthrough: onboard a new site</summary>
+      <ol>
+        <li><strong>Create a token above</strong> with a label that names the site or
+        client (e.g. <code>client-acme</code>). Two copy buttons appear: the raw token
+        and a ready-made <code>composer config</code> command.</li>
+        <li><strong>Send both snippets below</strong> to whoever manages that site,
+        through a private channel (password manager share &mdash; not plain email if
+        avoidable).</li>
+        <li>On the site, they add the repo and plugin to the
+        <code>composer.json</code> in the WordPress root:
+<pre><code>{
+    "repositories": [
+        { "type": "composer", "url": "https://<span class="host"></span>" }
+    ],
+    "require": {
+        "composer/installers": "^2.0",
+        "glidepress/glidepress-slider": "^2.1"
+    },
+    "extra": {
+        "installer-paths": {
+            "wp-content/plugins/{$name}/": ["type:wordpress-plugin"]
+        }
+    }
+}</code></pre></li>
+        <li>They store the credentials once (outside the project, never committed):
+<pre><code>composer config --global http-basic.<span class="host"></span> token &lt;TOKEN&gt;</code></pre></li>
+        <li>Install and activate:
+<pre><code>composer install
+wp plugin activate glidepress-slider   # or via wp-admin &rarr; Plugins</code></pre></li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>Updates &amp; new releases</summary>
+      <p>Releases are published automatically when a version tag is pushed to the
+      plugin repo (<code>npm run release -- patch</code> there). Nothing to do on this
+      page. Consumers pull the newest allowed version with:</p>
+      <pre><code>composer update glidepress/glidepress-slider</code></pre>
+    </details>
+
+    <details>
+      <summary>Revoking access</summary>
+      <p>Click <em>Revoke</em> next to a token. The site using it loses access within
+      about a minute (edge cache propagation) &mdash; its next
+      <code>composer install/update</code> fails with a 401. The plugin already
+      installed on that site keeps working; revocation only stops future downloads.
+      To restore access, create a fresh token and send it over.</p>
+    </details>
+
+    <details>
+      <summary>Troubleshooting a consumer</summary>
+      <ul>
+        <li><code>401 Could not authenticate</code> &mdash; token missing, mistyped, or
+        revoked; redo the <code>composer config</code> step.</li>
+        <li><code>Could not find package</code> &mdash; the <code>repositories</code>
+        entry is missing from their <code>composer.json</code>.</li>
+        <li>Plugin ends up in <code>vendor/</code> &mdash; they're missing
+        <code>composer/installers</code> or the <code>installer-paths</code> block.</li>
+      </ul>
+    </details>
+    </fieldset>
+  </div>
+
+  <p id="status" class="muted"></p>
+</main>
+<script src="admin.js"></script>
+</body>
+</html>

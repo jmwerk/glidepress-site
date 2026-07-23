@@ -2,8 +2,9 @@ name = "glidepress-site"
 main = "src/index.js"
 compatibility_date = "2026-07-01"
 
-# Static showcase site. Matching assets are served before the Worker runs, so
-# the Worker only ever sees non-asset paths (/packages.json, /dist/*, /admin).
+# Static showcase site (including the admin UI at public/admin/). Matching
+# assets are served before the Worker runs, so the Worker only ever sees
+# non-asset paths (/packages.json, /dist/*, /admin/api/*).
 [assets]
 directory = "./public"
 

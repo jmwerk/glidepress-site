@@ -1,4 +1,4 @@
-# Cloudflare Pages headers — https://developers.cloudflare.com/pages/configuration/headers/
+# Workers static assets headers — https://developers.cloudflare.com/workers/static-assets/headers/
 
 /*
   X-Content-Type-Options: nosniff
@@ -6,6 +6,16 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; form-action 'self'
+
+# Admin UI: never cache, never frame — matches the headers the Worker used to
+# send when it served this page inline. (/admin redirects to /admin/, so the
+# splat rule covers the page and its assets.)
+/admin
+  Cache-Control: no-store
+  X-Frame-Options: DENY
+/admin/*
+  Cache-Control: no-store
+  X-Frame-Options: DENY
 
 # Vendored Swiper bundle is versioned by hand — safe to cache hard.
 /vendor/*
