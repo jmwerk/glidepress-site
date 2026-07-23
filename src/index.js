@@ -11,12 +11,15 @@
  *   GET    /admin                             Token management UI
  *   GET    /admin/api/tokens                  List tokens
  *   POST   /admin/api/tokens {label}          Create a token
- *   DELETE /admin/api/tokens/<token>          Revoke a token
+ *   DELETE /admin/api/tokens/<id>             Revoke a token (id from the list)
  *
  * KV schema (binding REPO):
- *   token:<token>  -> JSON { "label": "...", "created": "..." }
+ *   token:<sha256-hex-of-token> -> JSON { "label": "...", "created": "...", "prefix": "gp_1234567" }
  *   versions       -> JSON [ { "version", "sha1", "time" }, ... ]
  *   dist:<version> -> zip binary
+ *
+ * Legacy keys token:<plaintext-token> (pre-hashing) are still accepted by
+ * authorize() and are migrated to the hashed form on first successful use.
  */
 
 const PACKAGE = "glidepress/glidepress-slider";
@@ -24,6 +27,11 @@ const PACKAGE = "glidepress/glidepress-slider";
 // ---------------------------------------------------------------------------
 // Composer-facing routes
 // ---------------------------------------------------------------------------
+
+async function sha256Hex(text) {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 async function authorize(request, env) {
 	const header = request.headers.get("Authorization") || "";
@@ -38,7 +46,18 @@ async function authorize(request, env) {
 	// Username is ignored; the token is the basic-auth password.
 	const token = decoded.slice(decoded.indexOf(":") + 1);
 	if (!token) return null;
-	return env.REPO.get(`token:${token}`, "json");
+
+	const hash = await sha256Hex(token);
+	const record = await env.REPO.get(`token:${hash}`, "json");
+	if (record) return record;
+
+	// Legacy plaintext key: migrate to the hashed form on first use.
+	const legacy = await env.REPO.get(`token:${token}`, "json");
+	if (!legacy) return null;
+	const migrated = { ...legacy, prefix: token.slice(0, 10) };
+	await env.REPO.put(`token:${hash}`, JSON.stringify(migrated));
+	await env.REPO.delete(`token:${token}`);
+	return migrated;
 }
 
 function unauthorized() {
@@ -143,8 +162,11 @@ async function handleAdmin(request, env, url) {
 			const list = await env.REPO.list({ prefix: "token:" });
 			const tokens = await Promise.all(
 				list.keys.map(async (k) => {
+					const id = k.name.slice("token:".length);
 					const meta = (await env.REPO.get(k.name, "json")) || {};
-					return { token: k.name.slice("token:".length), ...meta };
+					// Legacy (unmigrated) keys hold the plaintext token in the key
+					// itself and have no stored prefix — derive it for display.
+					return { id, prefix: meta.prefix || id.slice(0, 10), label: meta.label, created: meta.created };
 				})
 			);
 			tokens.sort((a, b) => (a.created || "").localeCompare(b.created || ""));
@@ -164,14 +186,16 @@ async function handleAdmin(request, env, url) {
 			const bytes = new Uint8Array(24);
 			crypto.getRandomValues(bytes);
 			const token = `gp_${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
-			const record = { label, created: new Date().toISOString() };
-			await env.REPO.put(`token:${token}`, JSON.stringify(record));
+			const record = { label, created: new Date().toISOString(), prefix: token.slice(0, 10) };
+			await env.REPO.put(`token:${await sha256Hex(token)}`, JSON.stringify(record));
+			// The only response that ever contains the plaintext token.
 			return json({ token, ...record }, 201);
 		}
 		return json({ error: "method not allowed" }, 405);
 	}
 
-	const match = url.pathname.match(/^\/admin\/api\/tokens\/(gp_[0-9a-f]+)$/);
+	// Hash ids are 64 hex chars; legacy unmigrated ids are the gp_ token itself.
+	const match = url.pathname.match(/^\/admin\/api\/tokens\/([0-9a-f]{64}|gp_[0-9a-f]+)$/);
 	if (match && request.method === "DELETE") {
 		await env.REPO.delete(`token:${match[1]}`);
 		return json({ ok: true });
@@ -274,6 +298,8 @@ const ADMIN_PAGE = `<!doctype html>
         <thead><tr><th>Label</th><th>Token</th><th>Created</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
+      <p class="muted">Only a hash of each token is stored, so a full token can't be
+      shown again after creation. If one is lost, revoke it and create a new one.</p>
     </fieldset>
 
     <fieldset class="guide">
@@ -423,9 +449,8 @@ wp plugin activate glidepress-slider   # or via wp-admin &rarr; Plugins</code></
 
         var tdToken = document.createElement("td");
         var code = document.createElement("code");
-        code.textContent = t.token.slice(0, 10) + "\\u2026 ";
+        code.textContent = t.prefix + "\\u2026";
         tdToken.appendChild(code);
-        tdToken.appendChild(copyBtn(t.token));
 
         var tdCreated = document.createElement("td");
         tdCreated.textContent = fmtDate(t.created);
@@ -435,8 +460,8 @@ wp plugin activate glidepress-slider   # or via wp-admin &rarr; Plugins</code></
         del.textContent = "Revoke";
         del.className = "danger";
         del.onclick = function () {
-          if (!confirm('Revoke "' + (t.label || t.token) + '"? Sites using it lose access immediately.')) return;
-          api("DELETE", "/admin/api/tokens/" + t.token)
+          if (!confirm('Revoke "' + (t.label || t.prefix) + '"? Sites using it lose access immediately.')) return;
+          api("DELETE", "/admin/api/tokens/" + t.id)
             .then(refresh)
             .then(function () { setStatus("Token revoked."); })
             .catch(function (e) { setStatus(e.message, true); });
@@ -500,7 +525,10 @@ wp plugin activate glidepress-slider   # or via wp-admin &rarr; Plugins</code></
         code2.textContent = cmd;
         p2.append(code2, " ");
         p2.appendChild(copyBtn(cmd));
-        box.append(p1, p2);
+        var p3 = document.createElement("div");
+        p3.className = "muted";
+        p3.textContent = "Copy it now \\u2014 only a hash is stored, so the full token can't be shown again.";
+        box.append(p1, p2, p3);
         setStatus("Token created.");
         return refresh();
       })
