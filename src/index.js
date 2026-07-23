@@ -20,9 +20,46 @@
  *
  * Legacy keys token:<plaintext-token> (pre-hashing) are still accepted by
  * authorize() and are migrated to the hashed form on first successful use.
+ *
+ * Rate limiting (binding AUTH_RATE_LIMITER, keyed on CF-Connecting-IP):
+ * brute-force protection for both auth schemes. Composer routes consume one
+ * unit per credentialed attempt *before* the KV token lookup, so over-limit
+ * IPs are rejected with 429 without costing a KV read; admin API routes
+ * consume one unit per failed Bearer attempt. See rateLimitExceeded().
  */
 
 const PACKAGE = "glidepress/glidepress-slider";
+
+// ---------------------------------------------------------------------------
+// Rate limiting
+// ---------------------------------------------------------------------------
+
+/**
+ * Consumes one unit from the per-IP limiter and reports whether the caller is
+ * over the limit. The ratelimit binding has no read-only probe — limit() is
+ * the whole API — so every call both counts and checks. Counters are per
+ * Cloudflare location and eventually consistent (fine for brute-force
+ * protection, not exact accounting). Fails open if the binding is missing
+ * (e.g. local dev against an older config).
+ */
+async function rateLimitExceeded(request, env) {
+	if (!env.AUTH_RATE_LIMITER) return false;
+	// CF-Connecting-IP is always set on traffic that traverses Cloudflare;
+	// the fallback only matters in local dev, where all requests share a bucket.
+	const key = request.headers.get("CF-Connecting-IP") || "local";
+	const { success } = await env.AUTH_RATE_LIMITER.limit({ key });
+	return !success;
+}
+
+// Retry-After matches the limiter period configured in wrangler.toml.
+const RATE_LIMIT_PERIOD = "60";
+
+function tooManyRequests() {
+	return new Response("Too many requests", {
+		status: 429,
+		headers: { "Retry-After": RATE_LIMIT_PERIOD },
+	});
+}
 
 // ---------------------------------------------------------------------------
 // Composer-facing routes
@@ -33,7 +70,9 @@ async function sha256Hex(text) {
 	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function authorize(request, env) {
+// Extracts the token from the basic-auth header without touching KV, so the
+// rate limiter can run between credential parsing and the token lookup.
+function parseBasicToken(request) {
 	const header = request.headers.get("Authorization") || "";
 	const [scheme, encoded] = header.split(" ");
 	if (scheme !== "Basic" || !encoded) return null;
@@ -45,8 +84,10 @@ async function authorize(request, env) {
 	}
 	// Username is ignored; the token is the basic-auth password.
 	const token = decoded.slice(decoded.indexOf(":") + 1);
-	if (!token) return null;
+	return token || null;
+}
 
+async function authorize(token, env) {
 	const hash = await sha256Hex(token);
 	const record = await env.REPO.get(`token:${hash}`, "json");
 	if (record) return record;
@@ -81,7 +122,17 @@ async function handleComposer(request, env, url) {
 		return new Response("Not found", { status: 404 });
 	}
 
-	const auth = await authorize(request, env);
+	// No/malformed credentials: plain 401, no limiter unit and no KV read.
+	const token = parseBasicToken(request);
+	if (!token) return unauthorized();
+
+	// One unit per credentialed attempt, consumed *before* the KV lookup so
+	// over-limit IPs don't cost a read. The binding has no non-consuming
+	// check, so requests with a valid token spend a unit too — the limit is
+	// effectively "auth attempts per IP", sized well above legit Composer use.
+	if (await rateLimitExceeded(request, env)) return tooManyRequests();
+
+	const auth = await authorize(token, env);
 	if (!auth) return unauthorized();
 
 	if (isPackages) {
@@ -154,6 +205,14 @@ async function handleAdmin(request, env, url) {
 	}
 
 	if (!adminAuthorized(request, env)) {
+		// Failed Bearer attempts consume a unit; once an IP is over the limit
+		// it gets 429 instead of 401. (Valid-key requests never touch the
+		// limiter, and no KV is read before this point on admin routes.)
+		if (await rateLimitExceeded(request, env)) {
+			const res = json({ error: "too many requests" }, 429);
+			res.headers.set("Retry-After", RATE_LIMIT_PERIOD);
+			return res;
+		}
 		return json({ error: "unauthorized" }, 401);
 	}
 

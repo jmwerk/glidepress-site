@@ -11,6 +11,14 @@ directory = "./public"
 binding = "REPO"
 id = "aa76fbd3fc1d46949e678aa4ff87512d"
 
+# Per-IP brute-force limiter for the Composer and admin auth paths (see README
+# "Rate limiting"). namespace_id is an arbitrary account-unique integer; period
+# must be 10 or 60 seconds.
+[[ratelimits]]
+name = "AUTH_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
 [observability]
 enabled = true
 
