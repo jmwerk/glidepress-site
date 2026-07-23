@@ -193,6 +193,82 @@ describe("Composer routes", () => {
 	});
 });
 
+describe("Changelog page", () => {
+	it("lists published versions newest first with release dates, no auth required", async () => {
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([
+				{ version: "4.0.0", sha1: "a".repeat(40), time: "2026-01-15T00:00:00+00:00" },
+				{ version: "4.1.0", sha1: "b".repeat(40), time: "2026-05-20T00:00:00+00:00" },
+			])
+		);
+
+		const res = await fetchWorker("/changelog");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+		expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
+		// _headers doesn't apply to Worker responses — the security headers the
+		// static pages get must be set here explicitly.
+		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+		expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+		expect(res.headers.get("Content-Security-Policy")).toContain("default-src 'self'");
+
+		const html = await res.text();
+		expect(html).toContain("4.1.0");
+		expect(html).toContain("4.0.0");
+		expect(html.indexOf("4.1.0")).toBeLessThan(html.indexOf("4.0.0")); // newest first
+		expect(html).toContain('datetime="2026-05-20"');
+		expect(html).toContain('datetime="2026-01-15"');
+	});
+
+	it("never renders sha1 hashes or dist URLs", async () => {
+		const sha1 = "e".repeat(40);
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([{ version: "4.2.0", sha1, time: "2026-06-01T00:00:00+00:00" }])
+		);
+
+		const html = await (await fetchWorker("/changelog")).text();
+		expect(html).not.toContain(sha1);
+		expect(html).not.toContain("/dist/");
+	});
+
+	it("renders notes as escaped paragraphs and bullet lists", async () => {
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([
+				{
+					version: "4.3.0",
+					sha1: "f".repeat(40),
+					time: "2026-07-01T00:00:00+00:00",
+					notes:
+						"Intro with <script>alert(1)</script> & a soft\nwrap.\n\n" +
+						"- Added *a thing*\n* Fixed another\n\nClosing paragraph.",
+				},
+			])
+		);
+
+		const html = await (await fetchWorker("/changelog")).text();
+		// Escaped, not executed; soft wrap joined into one paragraph.
+		expect(html).toContain("<p>Intro with &lt;script&gt;alert(1)&lt;/script&gt; &amp; a soft wrap.</p>");
+		expect(html).not.toContain("<script>alert(1)</script>");
+		// "- " and "* " lines become one list; other markdown stays literal.
+		expect(html).toContain("<ul><li>Added *a thing*</li><li>Fixed another</li></ul>");
+		expect(html).toContain("<p>Closing paragraph.</p>");
+	});
+
+	it("shows an empty state when no versions are published", async () => {
+		await env.REPO.put("versions", JSON.stringify([]));
+		const html = await (await fetchWorker("/changelog")).text();
+		expect(html).toContain("No releases have been published yet.");
+	});
+
+	it("rejects non-GET methods with 405", async () => {
+		const res = await fetchWorker("/changelog", { method: "POST" });
+		expect(res.status).toBe(405);
+	});
+});
+
 describe("usage tracking", () => {
 	const tokenKey = async () => `token:${await sha256Hex(TOKEN)}`;
 

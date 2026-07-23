@@ -4,7 +4,7 @@ compatibility_date = "2026-07-01"
 
 # Static showcase site (including the admin UI at public/admin/). Matching
 # assets are served before the Worker runs, so the Worker only ever sees
-# non-asset paths (/packages.json, /dist/*, /admin/api/*).
+# non-asset paths (/packages.json, /dist/*, /admin/api/*, /changelog).
 #
 # not_found_handling: browser navigations (Sec-Fetch-Mode: navigate) to
 # unmatched paths get public/404.html without invoking the Worker (the
@@ -12,9 +12,14 @@ compatibility_date = "2026-07-01"
 # compatibility_date). Non-navigation requests — Composer fetching
 # /packages.json and /dist/*, the admin UI calling /admin/api/* — still
 # invoke the Worker as before.
+#
+# run_worker_first: /changelog is a Worker-rendered page with no backing
+# asset, so browser navigations to it would otherwise be swallowed by the
+# 404-page handling above; this forces it through to the Worker.
 [assets]
 directory = "./public"
 not_found_handling = "404-page"
+run_worker_first = ["/changelog"]
 
 [[kv_namespaces]]
 binding = "REPO"

@@ -455,6 +455,42 @@ kbd {
 
 .inspector__range i { display: block; height: 100%; background: var(--accent); }
 
+/* ----------------------------- changelog -------------------------- */
+
+.changelog { padding: clamp(2.5rem, 6vw, 4rem) 0 4rem; }
+
+.release {
+	padding: 1.4rem 0;
+	border-top: 1px solid var(--line);
+}
+
+.release__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+
+.release__version {
+	font-size: 1.35rem;
+	margin: 0;
+}
+
+.release__date {
+	font-family: var(--mono);
+	font-size: 0.82rem;
+	color: var(--ink-soft);
+}
+
+.release__notes { color: var(--ink-soft); max-width: 44em; }
+
+.release__notes p { margin: 0.6rem 0 0; }
+
+.release__notes ul { margin: 0.6rem 0 0; padding-left: 1.2rem; }
+
+.release__notes li { margin: 0.25rem 0; }
+
 /* ------------------------------- footer --------------------------- */
 
 .site-footer {

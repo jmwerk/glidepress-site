@@ -7,6 +7,9 @@
  *   GET /packages.json                        Composer metadata for all published versions
  *   GET /dist/glidepress-slider-<ver>.zip     Dist archive for one version
  *
+ * Public routes (no auth — see handleChangelog for the reasoning):
+ *   GET /changelog                            Server-rendered release history page
+ *
  * Dist responses carry an ETag (the zip's sha1, quoted) and answer a matching
  * If-None-Match with 304. packages.json intentionally has no ETag: Composer 2
  * revalidates repo metadata only via If-Modified-Since/Last-Modified
@@ -28,11 +31,13 @@
  *   versions       -> JSON [ { "version", "sha1", "time",
  *                              "require"?: { "php": ">=8.1", ... },
  *                              "type"?: "wordpress-plugin",
- *                              "extra"?: { ... } }, ... ]
+ *                              "extra"?: { ... },
+ *                              "notes"?: "markdown release notes" }, ... ]
  *   dist:<version> -> zip binary
  *
- * require/type/extra are optional per-version fields written by the plugin CI
- * at publish time. packages.json falls back to require {"php": ">=7.4"} and
+ * require/type/extra/notes are optional per-version fields written by the
+ * plugin CI at publish time. notes is a markdown string rendered (escaped,
+ * paragraphs and bullets only) on the public /changelog page. packages.json falls back to require {"php": ">=7.4"} and
  * type "wordpress-plugin" (and omits extra) for entries that predate them, so
  * a release can change its constraints without a Worker deploy.
  *
@@ -240,6 +245,141 @@ async function handleComposer(request, env, ctx, url) {
 }
 
 // ---------------------------------------------------------------------------
+// Changelog page
+// ---------------------------------------------------------------------------
+
+function escapeHtml(text) {
+	return text.replace(
+		/[&<>"']/g,
+		(c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+	);
+}
+
+/**
+ * Renders a release-notes markdown string as minimal HTML. Deliberately not a
+ * markdown parser: blank-line-separated blocks become <p>, except blocks whose
+ * every line starts with "- " or "* ", which become a <ul>. All text is
+ * HTML-escaped, so any other markdown syntax renders literally.
+ */
+function renderNotes(notes) {
+	const blocks = notes
+		.replace(/\r\n/g, "\n")
+		.split(/\n\s*\n/)
+		.map((b) => b.trim())
+		.filter(Boolean);
+	return blocks
+		.map((block) => {
+			const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+			if (lines.every((l) => /^[-*] /.test(l))) {
+				return `<ul>${lines.map((l) => `<li>${escapeHtml(l.slice(2))}</li>`).join("")}</ul>`;
+			}
+			// Single newlines inside a block are soft wraps, not new paragraphs.
+			return `<p>${lines.map(escapeHtml).join(" ")}</p>`;
+		})
+		.join("\n");
+}
+
+/**
+ * Public release-history page. Deliberately unauthenticated: version numbers
+ * and release notes aren't sensitive. What IS withheld: sha1 hashes and dist
+ * URLs — those belong to the authenticated Composer routes and are never
+ * rendered here.
+ */
+async function handleChangelog(request, env) {
+	if (request.method !== "GET") {
+		return new Response("Method not allowed", { status: 405 });
+	}
+
+	const versions = (await env.REPO.get("versions", "json")) || [];
+	// Newest first, same ordering as the admin releases panel.
+	const releases = [...versions].sort((a, b) => (b.time || "").localeCompare(a.time || ""));
+
+	const entries = releases
+		.map((v) => {
+			const date = (v.time || "").slice(0, 10);
+			return `<article class="release">
+	<header class="release__head">
+		<h2 class="release__version">${escapeHtml(String(v.version))}</h2>
+		${date ? `<time class="release__date" datetime="${escapeHtml(date)}">${escapeHtml(date)}</time>` : ""}
+	</header>
+	${v.notes ? `<div class="release__notes">${renderNotes(String(v.notes))}</div>` : ""}
+</article>`;
+		})
+		.join("\n");
+
+	// Header/footer markup mirrors public/index.html (fragment links made
+	// absolute); styling comes from the same assets/site.css.
+	const html = `<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Changelog — GlidePress Slider</title>
+	<meta name="description" content="Release history for the GlidePress Slider WordPress plugin.">
+	<link rel="canonical" href="https://glidepress.jmwerk.com/changelog">
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232448c8'/%3E%3Crect x='22' y='30' width='36' height='40' fill='%23f5f1e8'/%3E%3Crect x='66' y='30' width='12' height='40' fill='%23f5f1e8' opacity='.5'/%3E%3C/svg%3E">
+	<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<header class="site-header">
+	<div class="wrap site-header__inner">
+		<a class="brand" href="/">GlidePress</a>
+		<nav class="site-nav" aria-label="Site">
+			<a href="/#effects">Effects</a>
+			<a href="/#details">Details</a>
+			<a href="/#editor">Editor</a>
+			<a href="/#accessibility">Accessibility</a>
+			<a href="/changelog" aria-current="page">Changelog</a>
+		</nav>
+	</div>
+</header>
+
+<main>
+	<section class="changelog">
+		<div class="wrap">
+			<p class="kicker">Release history</p>
+			<h1>Changelog</h1>
+			<p class="section__lead">Published versions of GlidePress Slider, newest first.</p>
+${entries || '			<p class="footnote">No releases have been published yet.</p>'}
+		</div>
+	</section>
+</main>
+
+<footer class="site-footer">
+	<div class="wrap site-footer__inner">
+		<p>
+			GlidePress Slider is free software,
+			<abbr title="GNU General Public License">GPL</abbr>-2.0-or-later.
+		</p>
+		<p>
+			Built on <a href="https://swiperjs.com/" rel="external">Swiper</a>
+			for <a href="https://wordpress.org/" rel="external">WordPress</a>.
+		</p>
+	</div>
+</footer>
+
+</body>
+</html>
+`;
+
+	return new Response(html, {
+		headers: {
+			"Content-Type": "text/html; charset=utf-8",
+			"Cache-Control": "public, max-age=300",
+			// public/_headers only covers static-asset responses; mirror the
+			// site-wide security headers here so this Worker-rendered page
+			// matches the rest of the site.
+			"X-Content-Type-Options": "nosniff",
+			"X-Frame-Options": "DENY",
+			"Referrer-Policy": "strict-origin-when-cross-origin",
+			"Content-Security-Policy":
+				"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; form-action 'self'",
+		},
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Admin routes
 // ---------------------------------------------------------------------------
 
@@ -375,6 +515,9 @@ async function handleAdmin(request, env, url) {
 export default {
 	async fetch(request, env, ctx) {
 		const url = new URL(request.url);
+		if (url.pathname === "/changelog") {
+			return handleChangelog(request, env);
+		}
 		if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
 			return handleAdmin(request, env, url);
 		}

@@ -20,6 +20,12 @@ One Cloudflare Worker serving two things on the same domain:
   zip's sha1) and answer a matching `If-None-Match` with `304`; `packages.json`
   deliberately doesn't — Composer 2 only revalidates metadata via
   `If-Modified-Since` (see the header comment in `src/index.js`).
+- **`/changelog`** — public server-rendered release history (version numbers,
+  dates, and optional per-version `notes` markdown from KV, rendered escaped
+  with paragraphs/bullets only). Deliberately unauthenticated — versions
+  aren't sensitive — but sha1 hashes and dist URLs are never rendered.
+  Listed in `run_worker_first` so browser navigations reach the Worker
+  instead of the 404 page. Cached for 5 minutes (`max-age=300`).
 - **`/admin`** — admin UI. The page itself is a static asset
   (`public/admin/`); it talks to the Worker's `/admin/api/*` JSON routes,
   unlocked with the `ADMIN_KEY` worker secret. Two panels:
@@ -72,8 +78,10 @@ challenge, valid-token `packages.json` shape, dist downloads), per-version
 KV metadata overrides vs. fallbacks, dist ETag/`If-None-Match` 304s, the
 no-challenge 404 for stray paths, per-token usage tracking (last-used /
 download counts and the daily write-skip), the admin token API
-(create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`), and the
-admin versions API (list with dist presence/size, release deletion).
+(create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`), the
+admin versions API (list with dist presence/size, release deletion), and the
+public changelog page (ordering, notes escaping/formatting, no sha1/dist
+leakage, caching).
 
 ## Deploy
 
