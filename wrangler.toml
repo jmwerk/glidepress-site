@@ -14,8 +14,6 @@ id = "aa76fbd3fc1d46949e678aa4ff87512d"
 [observability]
 enabled = true
 
-# Custom domain — uncomment and redeploy AFTER detaching glidepress.jmwerk.com
-# from the old Cloudflare Pages project in the dashboard:
-# [[routes]]
-# pattern = "glidepress.jmwerk.com"
-# custom_domain = true
+[[routes]]
+pattern = "glidepress.jmwerk.com"
+custom_domain = true
