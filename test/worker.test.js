@@ -276,6 +276,174 @@ describe("Changelog page", () => {
 	});
 });
 
+describe("Live demo", () => {
+	// A published release plus its zip, newest last so ordering is exercised.
+	async function seedReleases() {
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([
+				{ version: "5.1.0", sha1: "1".repeat(40), time: "2026-06-01T00:00:00+00:00" },
+				{ version: "5.0.0", sha1: "0".repeat(40), time: "2026-02-01T00:00:00+00:00" },
+			])
+		);
+		await env.REPO.put("dist:5.1.0", "PK-newest");
+		await env.REPO.put("dist:5.0.0", "PK-older");
+	}
+
+	it("serves the page without auth, framing only the Playground origin", async () => {
+		await seedReleases();
+		const res = await fetchWorker("/demo");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+		// The one page that frames another origin — everything else stays 'self'.
+		const csp = res.headers.get("Content-Security-Policy");
+		expect(csp).toContain("frame-src https://playground.wordpress.net");
+		expect(csp).toContain("script-src 'self'");
+
+		const html = await res.text();
+		expect(html).toContain('data-blueprint="https://glidepress.example.com/demo/blueprint.json"');
+		// Tells the visitor what they're about to run.
+		expect(html).toContain("5.1.0");
+	});
+
+	it("serves the newest release zip publicly, with CORS for the Playground origin", async () => {
+		await seedReleases();
+		const res = await fetchWorker("/demo/glidepress-slider.zip");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("application/zip");
+		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		// Decoded rather than .text()'d: the runtime warns about reading a
+		// zip-typed body as text.
+		expect(new TextDecoder().decode(await res.arrayBuffer())).toBe("PK-newest");
+	});
+
+	it("builds a blueprint that installs that zip and seeds the editor", async () => {
+		await seedReleases();
+		const res = await fetchWorker("/demo/blueprint.json");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+		const blueprint = await res.json();
+		expect(blueprint.landingPage).toBe("/wp-admin/post-new.php");
+
+		const install = blueprint.steps.find((s) => s.step === "installPlugin");
+		// Zip URL follows the request origin rather than a hardcoded hostname.
+		expect(install.pluginData.url).toBe("https://glidepress.example.com/demo/glidepress-slider.zip");
+		expect(install.options.activate).toBe(true);
+
+		const files = blueprint.steps.filter((s) => s.step === "writeFile");
+		expect(files.map((f) => f.path)).toEqual([
+			"/wordpress/wp-content/mu-plugins/glidepress-demo.js",
+			"/wordpress/wp-content/mu-plugins/glidepress-demo.php",
+		]);
+		// The seed builds blocks from the registered types rather than pasting
+		// saved markup — see the header comment in src/demo.js.
+		expect(files[0].data).toContain("wp.blocks.createBlock");
+		expect(files[0].data).toContain("glidepress/slider");
+		expect(files[0].data).toContain("isCleanNewPost");
+	});
+
+	it("seeds a kitchen sink covering every slider feature", async () => {
+		await seedReleases();
+		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
+		const seed = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
+
+		// Every effect, and the settings that are easy to forget to demo.
+		for (const attribute of [
+			"'fade'",
+			"'flip'",
+			"'creative'",
+			"autoplayShowPauseButton",
+			"overflow: true",
+			"equalHeight",
+			"arrowBorderRadius",
+			"paginationColorInactive",
+			"hideOnMobile",
+			"hideOnTablet",
+			"hideOnDesktop",
+			"align: 'full'",
+			"slidesPerViewDesktop",
+		]) {
+			expect(seed, `seed is missing ${attribute}`).toContain(attribute);
+		}
+	});
+
+	it("keeps seeded values inside the ranges the block sanitiser enforces", async () => {
+		await seedReleases();
+		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
+		const seed = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
+
+		// sanitizeSwiperConfig clamps out-of-range values silently, so a demo
+		// that overshoots would quietly show something other than it claims.
+		const bounds = {
+			speed: [100, 2000],
+			autoplayDelay: [500, 10000],
+			arrowSize: [24, 80],
+			arrowBorderRadius: [0, 50],
+			paginationSize: [4, 24],
+			slidesPerViewMobile: [1, 6],
+			slidesPerViewTablet: [1, 6],
+			slidesPerViewDesktop: [1, 6],
+			spaceBetweenMobile: [0, 100],
+			spaceBetweenTablet: [0, 100],
+			spaceBetweenDesktop: [0, 100],
+		};
+
+		for (const [name, [min, max]] of Object.entries(bounds)) {
+			for (const match of seed.matchAll(new RegExp(`${name}: (\\d+)`, "g"))) {
+				const value = Number(match[1]);
+				expect(value, `${name}: ${value} is outside ${min}-${max}`).toBeGreaterThanOrEqual(min);
+				expect(value, `${name}: ${value} is outside ${min}-${max}`).toBeLessThanOrEqual(max);
+			}
+		}
+	});
+
+	it("answers the Private Network Access preflight on both fetched routes", async () => {
+		// Chrome preflights a public https page fetching 127.0.0.1 and needs an
+		// explicit opt-in; a 405 here means the demo can't run against
+		// `wrangler dev` at all. Deployed, these routes are never preflighted.
+		for (const path of ["/demo/blueprint.json", "/demo/glidepress-slider.zip"]) {
+			const res = await fetchWorker(path, {
+				method: "OPTIONS",
+				headers: {
+					Origin: "https://playground.wordpress.net",
+					"Access-Control-Request-Method": "GET",
+					"Access-Control-Request-Private-Network": "true",
+				},
+			});
+			expect(res.status).toBe(204);
+			expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+			expect(res.headers.get("Access-Control-Allow-Private-Network")).toBe("true");
+		}
+	});
+
+	it("omits the private-network opt-in when the preflight didn't ask for it", async () => {
+		const res = await fetchWorker("/demo/blueprint.json", {
+			method: "OPTIONS",
+			headers: { Origin: "https://example.com", "Access-Control-Request-Method": "GET" },
+		});
+		expect(res.status).toBe(204);
+		expect(res.headers.get("Access-Control-Allow-Private-Network")).toBeNull();
+	});
+
+	it("404s the zip when the newest release has no archive in KV", async () => {
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([{ version: "9.9.9", sha1: "c".repeat(40), time: "2026-08-01T00:00:00+00:00" }])
+		);
+		const res = await fetchWorker("/demo/glidepress-slider.zip");
+		expect(res.status).toBe(404);
+	});
+
+	it("404s an unknown /demo path and rejects non-GET methods", async () => {
+		await seedReleases();
+		expect((await fetchWorker("/demo/nope")).status).toBe(404);
+		expect((await fetchWorker("/demo", { method: "POST" })).status).toBe(405);
+		expect((await fetchWorker("/demo/glidepress-slider.zip", { method: "POST" })).status).toBe(405);
+	});
+});
+
 describe("usage tracking", () => {
 	const tokenKey = async () => `token:${await sha256Hex(TOKEN)}`;
 

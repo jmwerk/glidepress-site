@@ -11,14 +11,21 @@
 </head>
 <body>
 
+<!--
+	The nav below duplicates src/shell.js. It can't import it: not_found_handling
+	serves this page as a static asset without invoking the Worker, which is the
+	whole point of it. Keep the two lists in step by hand.
+-->
 <header class="site-header">
 	<div class="wrap site-header__inner">
 		<a class="brand" href="/">GlidePress</a>
 		<nav class="site-nav" aria-label="Site">
+			<a href="/demo">Live demo</a>
 			<a href="/#effects">Effects</a>
 			<a href="/#details">Details</a>
 			<a href="/#editor">Editor</a>
 			<a href="/#accessibility">Accessibility</a>
+			<a href="/changelog">Changelog</a>
 		</nav>
 	</div>
 </header>
@@ -29,11 +36,13 @@
 			<p class="kicker">404 &mdash; Not found</p>
 			<h1>That page slid away.</h1>
 			<p class="hero__sub">
-				There&rsquo;s nothing at this address. The whole site is one
-				page anyway &mdash; everything worth seeing is on it.
+				There&rsquo;s nothing at this address, and not much site to lose
+				your way in: a homepage, a live editor you can type into, and a
+				changelog.
 			</p>
 			<p class="hero__actions">
 				<a class="btn" href="/">Back to the homepage</a>
+				<a class="quiet-link" href="/demo">or try the live demo&thinsp;&rarr;</a>
 			</p>
 		</div>
 	</section>

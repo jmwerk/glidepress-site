@@ -26,6 +26,25 @@ One Cloudflare Worker serving two things on the same domain:
   aren't sensitive — but sha1 hashes and dist URLs are never rendered.
   Listed in `run_worker_first` so browser navigations reach the Worker
   instead of the 404 page. Cached for 5 minutes (`max-age=300`).
+- **`/demo`** — live editable demo. Boots [WordPress
+  Playground](https://wordpress.org/playground/) (WordPress + PHP compiled to
+  WebAssembly) in an iframe on click, with the plugin installed and a
+  kitchen-sink post seeded in — twelve sliders, one per feature (the four
+  effects, autoplay with its pause button, overflow peek, styled controls,
+  equal height, per-breakpoint slide visibility, full-width alignment) — so
+  visitors drive the real block editor and the real frontend rather than a
+  mock-up. The editor lays slides out side by side rather than running Swiper,
+  so the page copy pushes visitors to publish and view. Three Worker routes:
+  the page, `/demo/blueprint.json` (the Playground blueprint, CORS-enabled
+  because it's read from the Playground origin), and
+  `/demo/glidepress-slider.zip` — **the newest release, unauthenticated** so
+  the blueprint's `installPlugin` step can fetch it. Playground runs entirely
+  client-side, so there is nowhere to hide a token from a visitor; this route
+  is the one place the plugin is downloadable without one. `/packages.json`
+  and `/dist/*` are unchanged. Because it always serves the newest release,
+  publishing a version updates the demo with no deploy. See `src/demo.js` for
+  why the showcase content is built at runtime with `wp.blocks.createBlock`
+  instead of stored as saved markup.
 - **`/admin`** — admin UI. The page itself is a static asset
   (`public/admin/`); it talks to the Worker's `/admin/api/*` JSON routes,
   unlocked with the `ADMIN_KEY` worker secret. Two panels:
@@ -79,9 +98,14 @@ KV metadata overrides vs. fallbacks, dist ETag/`If-None-Match` 304s, the
 no-challenge 404 for stray paths, per-token usage tracking (last-used /
 download counts and the daily write-skip), the admin token API
 (create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`), the
-admin versions API (list with dist presence/size, release deletion), and the
+admin versions API (list with dist presence/size, release deletion), the
 public changelog page (ordering, notes escaping/formatting, no sha1/dist
-leakage, caching).
+leakage, caching), and the demo routes (page CSP allowing only the Playground
+frame, newest-release zip with CORS, blueprint shape and seeded files).
+
+Tests invoke the Worker directly, which bypasses static-asset routing — so
+they can't catch a `run_worker_first` mistake that lets the 404 page swallow a
+Worker route. Check new routes against `wrangler dev` as well.
 
 ## Deploy
 
@@ -134,3 +158,24 @@ cp path/to/glidepress-slider/node_modules/swiper/swiper-bundle.min.{js,css} publ
 ```bash
 npx wrangler dev
 ```
+
+### Testing /demo locally
+
+The demo is the one route `wrangler dev` can't fully exercise on its own,
+because the https Playground origin has to fetch the blueprint and the plugin
+zip back off the local server:
+
+- **`[[routes]]` gets in the way.** With the custom domain configured,
+  `wrangler dev` rewrites the request URL to `glidepress.jmwerk.com`, so the
+  blueprint hands Playground the *production* host. Run against a copy of
+  `wrangler.toml` with the `[[routes]]` block removed and the origin follows
+  `127.0.0.1` as intended.
+- **Chrome works.** It treats the fetch as Private Network Access and
+  preflights it; the Worker answers that preflight (see `corsPreflight` in
+  `src/demo.js`, which exists solely for this).
+- **Firefox does not.** It blocks an `http://127.0.0.1` subresource of an
+  https page as mixed content and never sends the request — `BlueprintFetchError`
+  with a `NetworkError` and no status. Nothing server-side can fix that.
+
+So: Chrome for the quick loop, and a deployed preview URL when the demo needs
+checking in other browsers.

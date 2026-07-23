@@ -15,7 +15,14 @@ compatibility_date = "2026-07-01"
 [assets]
 directory = "./public"
 not_found_handling = "404-page"
-run_worker_first = ["/changelog", "/packages.json", "/dist/*", "/admin/api/*"]
+run_worker_first = [
+	"/changelog",
+	"/demo",
+	"/demo/*",
+	"/packages.json",
+	"/dist/*",
+	"/admin/api/*",
+]
 
 [[kv_namespaces]]
 binding = "REPO"

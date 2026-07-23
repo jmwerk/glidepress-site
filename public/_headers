@@ -21,5 +21,11 @@
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Revalidate rather than cache blind: these filenames aren't fingerprinted, so
+# a max-age here doesn't just delay an update, it can pair new HTML with a
+# stale script — /demo breaks outright when demo.js and site.css disagree.
+# "no-cache" still caches, it just makes the browser confirm with the ETag
+# (which Workers generates per asset), so the usual answer is a 304.
+# Raise this to a long max-age if these ever get content hashes in the name.
 /assets/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache

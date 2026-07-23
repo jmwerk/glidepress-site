@@ -9,6 +9,7 @@
  *
  * Public routes (no auth — see handleChangelog for the reasoning):
  *   GET /changelog                            Server-rendered release history page
+ *   GET /demo, /demo/*                        Live WordPress Playground demo (see src/demo.js)
  *
  * Dist responses carry an ETag (the zip's sha1, quoted) and answer a matching
  * If-None-Match with 304. packages.json intentionally has no ETag: Composer 2
@@ -50,6 +51,9 @@
  * IPs are rejected with 429 without costing a KV read; admin API routes
  * consume one unit per failed Bearer attempt. See rateLimitExceeded().
  */
+
+import { handleDemo } from "./demo.js";
+import { FAVICON, SITE_FOOTER, htmlHeaders, siteHeader } from "./shell.js";
 
 const PACKAGE = "glidepress/glidepress-slider";
 
@@ -319,23 +323,12 @@ async function handleChangelog(request, env) {
 	<title>Changelog — GlidePress Slider</title>
 	<meta name="description" content="Release history for the GlidePress Slider WordPress plugin.">
 	<link rel="canonical" href="https://glidepress.jmwerk.com/changelog">
-	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232448c8'/%3E%3Crect x='22' y='30' width='36' height='40' fill='%23f5f1e8'/%3E%3Crect x='66' y='30' width='12' height='40' fill='%23f5f1e8' opacity='.5'/%3E%3C/svg%3E">
+	<link rel="icon" href="${FAVICON}">
 	<link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
 
-<header class="site-header">
-	<div class="wrap site-header__inner">
-		<a class="brand" href="/">GlidePress</a>
-		<nav class="site-nav" aria-label="Site">
-			<a href="/#effects">Effects</a>
-			<a href="/#details">Details</a>
-			<a href="/#editor">Editor</a>
-			<a href="/#accessibility">Accessibility</a>
-			<a href="/changelog" aria-current="page">Changelog</a>
-		</nav>
-	</div>
-</header>
+${siteHeader("/changelog")}
 
 <main>
 	<section class="changelog">
@@ -348,37 +341,15 @@ ${entries || '			<p class="footnote">No releases have been published yet.</p>'}
 	</section>
 </main>
 
-<footer class="site-footer">
-	<div class="wrap site-footer__inner">
-		<p>
-			GlidePress Slider is free software,
-			<abbr title="GNU General Public License">GPL</abbr>-2.0-or-later.
-		</p>
-		<p>
-			Built on <a href="https://swiperjs.com/" rel="external">Swiper</a>
-			for <a href="https://wordpress.org/" rel="external">WordPress</a>.
-		</p>
-	</div>
-</footer>
+${SITE_FOOTER}
 
 </body>
 </html>
 `;
 
-	return new Response(html, {
-		headers: {
-			"Content-Type": "text/html; charset=utf-8",
-			"Cache-Control": "public, max-age=300",
-			// public/_headers only covers static-asset responses; mirror the
-			// site-wide security headers here so this Worker-rendered page
-			// matches the rest of the site.
-			"X-Content-Type-Options": "nosniff",
-			"X-Frame-Options": "DENY",
-			"Referrer-Policy": "strict-origin-when-cross-origin",
-			"Content-Security-Policy":
-				"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; form-action 'self'",
-		},
-	});
+	// public/_headers only covers static-asset responses, so this page sets the
+	// site-wide security headers itself (see htmlHeaders in src/shell.js).
+	return new Response(html, { headers: htmlHeaders({ cacheControl: "public, max-age=300" }) });
 }
 
 // ---------------------------------------------------------------------------
@@ -519,6 +490,9 @@ export default {
 		const url = new URL(request.url);
 		if (url.pathname === "/changelog") {
 			return handleChangelog(request, env);
+		}
+		if (url.pathname === "/demo" || url.pathname.startsWith("/demo/")) {
+			return handleDemo(request, env, url);
 		}
 		if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
 			return handleAdmin(request, env, url);
