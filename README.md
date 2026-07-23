@@ -38,13 +38,40 @@ consistent — this is brute-force protection, not exact accounting. The
 limiter is also enforced in `wrangler dev` (all local requests share one
 bucket). The Worker fails open if the binding is absent.
 
+## Testing
+
+```bash
+npm install
+npm test
+```
+
+Tests run with [Vitest](https://vitest.dev/) inside the actual Workers runtime
+via [`@cloudflare/vitest-pool-workers`](https://developers.cloudflare.com/workers/testing/vitest-integration/),
+with bindings taken from `wrangler.toml` (KV is isolated per test). Covered:
+Composer auth (401 challenge, valid-token `packages.json` shape, dist
+downloads), the no-challenge 404 for stray paths, and the admin token API
+(create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`).
+
 ## Deploy
+
+**CI (normal path):** pushing to `main` runs the test suite and, if green,
+deploys via `.github/workflows/deploy.yml`
+([cloudflare/wrangler-action](https://github.com/cloudflare/wrangler-action)).
+Pull requests run tests only. Two repo secrets must be configured under
+*Settings → Secrets and variables → Actions*:
+
+- `CLOUDFLARE_API_TOKEN` — an API token with the *Edit Cloudflare Workers*
+  template permissions
+- `CLOUDFLARE_ACCOUNT_ID` — from the Workers overview page in the dashboard
+
+**Manual fallback:**
 
 ```bash
 npx wrangler deploy
 ```
 
-Secrets (one-time / rotation): `npx wrangler secret put ADMIN_KEY`
+Worker secrets (one-time / rotation, not managed by CI):
+`npx wrangler secret put ADMIN_KEY`
 
 ## Consumer setup (WordPress site installing the plugin)
 

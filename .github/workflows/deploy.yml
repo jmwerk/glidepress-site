@@ -1,0 +1,39 @@
+# CI for the glidepress-site Worker.
+#
+# - pull_request: run the vitest suite only.
+# - push to main: run the suite, then deploy with wrangler-action. Requires
+#   the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repo secrets
+#   (Settings -> Secrets and variables -> Actions).
+#
+# Actions are pinned to commit SHAs (tag in the trailing comment).
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # --if-present keeps the job green if the test script is ever removed.
+      - run: npm run test --if-present
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

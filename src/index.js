@@ -180,7 +180,7 @@ function timingSafeEqual(a, b) {
 	return crypto.subtle.timingSafeEqual(ab, bb);
 }
 
-function adminAuthorized(request, env) {
+export function adminAuthorized(request, env) {
 	if (!env.ADMIN_KEY) return false; // secret not configured -> admin disabled
 	const header = request.headers.get("Authorization") || "";
 	const [scheme, key] = header.split(" ");

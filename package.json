@@ -1,0 +1,22 @@
+{
+	"name": "glidepress-site",
+	"private": true,
+	"type": "module",
+	"description": "GlidePress showcase site + private Composer repo (Cloudflare Worker)",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.18.7",
+		"vitest": "^4.1.0",
+		"wrangler": "^4.0.0"
+	},
+	"allowScripts": {
+		"esbuild@0.25.4": true,
+		"esbuild@0.28.1": true,
+		"workerd@1.20251011.0": true,
+		"workerd@1.20260721.1": true
+	}
+}
