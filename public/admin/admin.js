@@ -72,6 +72,13 @@
         var tdCreated = document.createElement("td");
         tdCreated.textContent = fmtDate(t.created);
 
+        var tdLastUsed = document.createElement("td");
+        tdLastUsed.textContent = t.lastUsed ? fmtDate(t.lastUsed) : "never";
+
+        // Downloads are approximate (KV last-write-wins on concurrent updates).
+        var tdDownloads = document.createElement("td");
+        tdDownloads.textContent = t.downloads == null ? "never" : String(t.downloads);
+
         var tdActions = document.createElement("td");
         var del = document.createElement("button");
         del.textContent = "Revoke";
@@ -88,13 +95,15 @@
         tr.appendChild(tdLabel);
         tr.appendChild(tdToken);
         tr.appendChild(tdCreated);
+        tr.appendChild(tdLastUsed);
+        tr.appendChild(tdDownloads);
         tr.appendChild(tdActions);
         tbody.appendChild(tr);
       });
       if (tokens.length === 0) {
         var tr = document.createElement("tr");
         var td = document.createElement("td");
-        td.colSpan = 4;
+        td.colSpan = 6;
         td.className = "muted";
         td.textContent = "No tokens yet.";
         tr.appendChild(td);

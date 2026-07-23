@@ -13,7 +13,10 @@ One Cloudflare Worker serving two things on the same domain:
   needed to ship a plugin version.
 - **`/admin`** — token management UI (create / list / revoke). The page itself
   is a static asset (`public/admin/`); it talks to the Worker's `/admin/api/*`
-  JSON routes, unlocked with the `ADMIN_KEY` worker secret.
+  JSON routes, unlocked with the `ADMIN_KEY` worker secret. Each token's row
+  shows when it was last used and how many dist downloads it has made
+  (approximate — KV is last-write-wins on concurrent updates; to limit KV
+  writes, metadata polls update "last used" at most once per day).
 
 ## Rate limiting
 
@@ -49,8 +52,9 @@ Tests run with [Vitest](https://vitest.dev/) inside the actual Workers runtime
 via [`@cloudflare/vitest-pool-workers`](https://developers.cloudflare.com/workers/testing/vitest-integration/),
 with bindings taken from `wrangler.toml` (KV is isolated per test). Covered:
 Composer auth (401 challenge, valid-token `packages.json` shape, dist
-downloads), the no-challenge 404 for stray paths, and the admin token API
-(create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`).
+downloads), the no-challenge 404 for stray paths, per-token usage tracking
+(last-used / download counts and the daily write-skip), and the admin token
+API (create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`).
 
 ## Deploy
 

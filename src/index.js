@@ -15,7 +15,8 @@
  *   DELETE /admin/api/tokens/<id>             Revoke a token (id from the list)
  *
  * KV schema (binding REPO):
- *   token:<sha256-hex-of-token> -> JSON { "label": "...", "created": "...", "prefix": "gp_1234567" }
+ *   token:<sha256-hex-of-token> -> JSON { "label": "...", "created": "...", "prefix": "gp_1234567",
+ *                                         "lastUsed"?: "...", "downloads"?: 0 }
  *   versions       -> JSON [ { "version", "sha1", "time" }, ... ]
  *   dist:<version> -> zip binary
  *
@@ -102,6 +103,20 @@ async function authorize(token, env) {
 	return migrated;
 }
 
+/**
+ * Updates a token's KV record with lastUsed and, for dist downloads, an
+ * incremented downloads counter. Runs via ctx.waitUntil() so it never delays
+ * the response. KV updates are last-write-wins, so concurrent requests with
+ * the same token can drop an increment — the counts are approximate, which is
+ * acceptable for the "is this token still in use?" question the admin UI
+ * answers.
+ */
+async function recordUsage(token, record, isDist, env) {
+	const updated = { ...record, lastUsed: new Date().toISOString() };
+	if (isDist) updated.downloads = (record.downloads || 0) + 1;
+	await env.REPO.put(`token:${await sha256Hex(token)}`, JSON.stringify(updated));
+}
+
 function unauthorized() {
 	return new Response("Unauthorized", {
 		status: 401,
@@ -109,7 +124,7 @@ function unauthorized() {
 	});
 }
 
-async function handleComposer(request, env, url) {
+async function handleComposer(request, env, ctx, url) {
 	if (request.method !== "GET") {
 		return new Response("Method not allowed", { status: 405 });
 	}
@@ -135,6 +150,16 @@ async function handleComposer(request, env, url) {
 
 	const auth = await authorize(token, env);
 	if (!auth) return unauthorized();
+
+	// Record usage in the background. To limit KV writes, skip when lastUsed
+	// is already today and this isn't a dist download — metadata polls
+	// (packages.json) then cost at most one write per token per day, while
+	// every download still bumps the counter.
+	const isDist = Boolean(distMatch);
+	const today = new Date().toISOString().slice(0, 10);
+	if (isDist || (auth.lastUsed || "").slice(0, 10) !== today) {
+		ctx.waitUntil(recordUsage(token, auth, isDist, env));
+	}
 
 	if (isPackages) {
 		const versions = (await env.REPO.get("versions", "json")) || [];
@@ -216,7 +241,14 @@ async function handleAdmin(request, env, url) {
 					const meta = (await env.REPO.get(k.name, "json")) || {};
 					// Legacy (unmigrated) keys hold the plaintext token in the key
 					// itself and have no stored prefix — derive it for display.
-					return { id, prefix: meta.prefix || id.slice(0, 10), label: meta.label, created: meta.created };
+					return {
+						id,
+						prefix: meta.prefix || id.slice(0, 10),
+						label: meta.label,
+						created: meta.created,
+						lastUsed: meta.lastUsed,
+						downloads: meta.downloads,
+					};
 				})
 			);
 			tokens.sort((a, b) => (a.created || "").localeCompare(b.created || ""));
@@ -259,11 +291,11 @@ async function handleAdmin(request, env, url) {
 // ---------------------------------------------------------------------------
 
 export default {
-	async fetch(request, env) {
+	async fetch(request, env, ctx) {
 		const url = new URL(request.url);
 		if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
 			return handleAdmin(request, env, url);
 		}
-		return handleComposer(request, env, url);
+		return handleComposer(request, env, ctx, url);
 	},
 };

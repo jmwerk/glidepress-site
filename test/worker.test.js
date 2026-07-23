@@ -7,7 +7,7 @@
  * shape `env`: adding/omitting the ADMIN_KEY secret, and stubbing
  * AUTH_RATE_LIMITER so the per-IP limiter never interferes with test volume.
  */
-import { env } from "cloudflare:test";
+import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import worker, { adminAuthorized } from "../src/index.js";
 
@@ -21,8 +21,12 @@ function testEnv(overrides = {}) {
 	return { ...env, AUTH_RATE_LIMITER: openLimiter, ...overrides };
 }
 
-function fetchWorker(path, init = {}, envOverrides = {}) {
-	return worker.fetch(new Request(`${ORIGIN}${path}`, init), testEnv(envOverrides));
+async function fetchWorker(path, init = {}, envOverrides = {}) {
+	const ctx = createExecutionContext();
+	const res = await worker.fetch(new Request(`${ORIGIN}${path}`, init), testEnv(envOverrides), ctx);
+	// Let waitUntil() work (usage recording) settle before assertions.
+	await waitOnExecutionContext(ctx);
+	return res;
 }
 
 function basicAuth(token) {
@@ -105,6 +109,72 @@ describe("Composer routes", () => {
 		const res = await fetchWorker("/no-such-page");
 		expect(res.status).toBe(404);
 		expect(res.headers.get("WWW-Authenticate")).toBeNull();
+	});
+});
+
+describe("usage tracking", () => {
+	const tokenKey = async () => `token:${await sha256Hex(TOKEN)}`;
+
+	it("records lastUsed (but no download count) on a packages.json fetch", async () => {
+		await seedToken();
+		await env.REPO.put("versions", JSON.stringify([]));
+
+		const res = await fetchWorker("/packages.json", { headers: basicAuth(TOKEN) });
+		expect(res.status).toBe(200);
+
+		const record = await env.REPO.get(await tokenKey(), "json");
+		expect(record.lastUsed).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+		expect(record.downloads).toBeUndefined();
+	});
+
+	it("increments downloads on each dist fetch", async () => {
+		await seedToken();
+		await env.REPO.put("dist:1.0.0", new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+
+		await fetchWorker("/dist/glidepress-slider-1.0.0.zip", { headers: basicAuth(TOKEN) });
+		await fetchWorker("/dist/glidepress-slider-1.0.0.zip", { headers: basicAuth(TOKEN) });
+
+		const record = await env.REPO.get(await tokenKey(), "json");
+		expect(record.downloads).toBe(2);
+	});
+
+	it("skips the KV write when lastUsed is already today and it's not a download", async () => {
+		const earlierToday = new Date().toISOString().slice(0, 10) + "T00:00:00.000Z";
+		await env.REPO.put(
+			`token:${await sha256Hex(TOKEN)}`,
+			JSON.stringify({ label: "test", prefix: TOKEN.slice(0, 10), lastUsed: earlierToday })
+		);
+		await env.REPO.put("versions", JSON.stringify([]));
+
+		const res = await fetchWorker("/packages.json", { headers: basicAuth(TOKEN) });
+		expect(res.status).toBe(200);
+
+		// Unchanged lastUsed proves no write happened.
+		const record = await env.REPO.get(await tokenKey(), "json");
+		expect(record.lastUsed).toBe(earlierToday);
+	});
+
+	it("surfaces lastUsed and downloads in the admin token list", async () => {
+		await env.REPO.put(
+			`token:${await sha256Hex(TOKEN)}`,
+			JSON.stringify({
+				label: "test",
+				created: "2026-01-01T00:00:00.000Z",
+				prefix: TOKEN.slice(0, 10),
+				lastUsed: "2026-07-01T12:00:00.000Z",
+				downloads: 7,
+			})
+		);
+
+		const res = await fetchWorker(
+			"/admin/api/tokens",
+			{ headers: { Authorization: `Bearer ${ADMIN_KEY}` } },
+			{ ADMIN_KEY }
+		);
+		expect(res.status).toBe(200);
+		const [token] = await res.json();
+		expect(token.lastUsed).toBe("2026-07-01T12:00:00.000Z");
+		expect(token.downloads).toBe(7);
 	});
 });
 
