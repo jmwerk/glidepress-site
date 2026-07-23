@@ -148,295 +148,302 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 	}
 
 	// Each entry becomes: a heading, a line of explanation, and one slider.
-	var SECTIONS = [
-		{
-			title: 'Responsive slides per view',
-			note: 'One slide on mobile, two on tablet, three on desktop, with the gap widening as it goes. Narrow the window on the published page to watch it step down.',
-			slider: slider(
-				{
-					align: 'wide',
-					ariaLabel: 'Responsive slides per view',
-					effect: 'slide',
-					loop: true,
-					equalHeight: true,
-					slidesPerViewMobile: 1,
-					slidesPerViewTablet: 2,
-					slidesPerViewDesktop: 3,
-					spaceBetweenMobile: 16,
-					spaceBetweenTablet: 24,
-					spaceBetweenDesktop: 32,
-				},
-				numbered( 6, 'Slide' )
-			),
-		},
-		{
-			title: 'Fade',
-			note: 'Cross-fades between slides. Every effect except Slide is locked to one slide per view — the controls grey themselves out.',
-			slider: slider(
-				{
-					ariaLabel: 'Fade effect',
-					effect: 'fade',
-					speed: 700,
-					loop: true,
-				},
-				numbered( 3, 'Fade' )
-			),
-		},
-		{
-			title: 'Flip',
-			note: 'A 3D flip, with slide shadows off so the colours stay flat.',
-			slider: slider(
-				{ ariaLabel: 'Flip effect', effect: 'flip', speed: 600, loop: true },
-				numbered( 3, 'Flip' )
-			),
-		},
-		{
-			title: 'Creative',
-			note: 'The outgoing slide translates away while the next one arrives over it.',
-			slider: slider(
-				{
-					ariaLabel: 'Creative effect',
-					effect: 'creative',
-					speed: 800,
-					loop: true,
-				},
-				numbered( 3, 'Creative' )
-			),
-		},
-		{
-			title: 'Autoplay, with a pause button',
-			note: 'Advances every three seconds, pauses when the pointer is over it, and renders a real pause control — autoplay that cannot be stopped is an accessibility failure.',
-			slider: slider(
-				{
-					ariaLabel: 'Autoplay',
-					effect: 'slide',
-					loop: true,
-					autoplay: true,
-					autoplayDelay: 3000,
-					autoplayPauseOnHover: true,
-					autoplayShowPauseButton: true,
-					equalHeight: true,
-				},
-				numbered( 4, 'Autoplay' )
-			),
-		},
-		{
-			title: 'Peek at the neighbours',
-			note: 'Overflow lets the slides either side show past the edges. Slide effect only, and it keeps an extra looped slide on each side so the peek is never blank.',
-			slider: slider(
-				{
-					align: 'wide',
-					ariaLabel: 'Overflow peek',
-					effect: 'slide',
-					loop: true,
-					overflow: true,
-					equalHeight: true,
-					slidesPerViewMobile: 1,
-					slidesPerViewTablet: 1,
-					slidesPerViewDesktop: 1,
-					spaceBetweenMobile: 20,
-					spaceBetweenTablet: 24,
-					spaceBetweenDesktop: 28,
-				},
-				numbered( 5, 'Peek' )
-			),
-		},
-		{
-			title: 'Styled controls',
-			note: 'Arrow colour, background, size and corner radius, plus pagination colours and dot size — all per slider, all in the sidebar. These arrows are large and square.',
-			slider: slider(
-				{
-					ariaLabel: 'Styled controls',
-					effect: 'slide',
-					loop: true,
-					equalHeight: true,
-					arrowColor: '#211f1a',
-					arrowBackground: '#f5f1e8',
-					arrowBorderRadius: 8,
-					arrowSize: 64,
-					paginationColor: '#a05c3b',
-					paginationColorInactive: 'rgba(245,241,232,0.45)',
-					paginationSize: 16,
-				},
-				numbered( 4, 'Styled' )
-			),
-		},
-		{
-			title: 'Minimal chrome',
-			note: 'Arrows off, pagination off, keyboard still on. Drag it, or focus it on the published page and use the arrow keys.',
-			slider: slider(
-				{
-					ariaLabel: 'No arrows or pagination',
-					effect: 'slide',
-					loop: true,
-					arrows: false,
-					pagination: false,
-					keyboard: true,
-					equalHeight: true,
-				},
-				numbered( 4, 'Bare' )
-			),
-		},
-		{
-			title: 'Equal height',
-			note: 'These slides hold wildly different amounts of text. With equal height on, they all match the tallest instead of the slider resizing as it moves.',
-			slider: slider(
-				{
-					align: 'wide',
-					ariaLabel: 'Equal height',
-					effect: 'slide',
-					loop: true,
-					equalHeight: true,
-					slidesPerViewMobile: 1,
-					slidesPerViewTablet: 2,
-					slidesPerViewDesktop: 2,
-					spaceBetweenMobile: 16,
-					spaceBetweenTablet: 24,
-					spaceBetweenDesktop: 24,
-				},
-				[
-					colourSlide( 0, 'Short', 'One line.' ),
-					colourSlide(
-						1,
-						'Rather longer',
-						'This slide carries several sentences of copy so that it stands a good deal taller than its neighbour. Turn equal height off in the sidebar and the whole slider will start resizing itself as you move between the two, which is the behaviour you usually do not want.'
-					),
-					colourSlide( 2, 'Middling', 'Two lines, give or take, of supporting text.' ),
-					colourSlide( 3, 'Short again', 'One line.' ),
-				]
-			),
-		},
-		{
-			title: 'Slides are just blocks',
-			note: 'Gradient, border, shadow, minimum height, padding and typography come from the controls WordPress gives every block — GlidePress adds none of them. Select a slide to see.',
-			slider: slider(
-				{
-					ariaLabel: 'Slide styling',
-					effect: 'slide',
-					loop: true,
-					equalHeight: true,
-				},
-				[
-					slide( 'Gradient', 'A gradient background, from the colour panel.', {
-						contentSpacing: 'evenly',
-						style: {
-							color: {
-								gradient:
-									'linear-gradient(135deg, #2c3e66 0%, #5a4a6b 100%)',
-								text: CREAM,
-							},
-							spacing: {
-								padding: {
-									top: '2.5rem',
-									right: '2rem',
-									bottom: '2.5rem',
-									left: '2rem',
+	//
+	// This MUST stay a function. As a plain array it was evaluated when the
+	// script loaded, which called wp.blocks.createBlock before the editor had
+	// registered any block type — and the throw took the whole script with it,
+	// including the wp.domReady handler below, so the seed never even started.
+	function buildSections() {
+		return [
+			{
+				title: 'Responsive slides per view',
+				note: 'One slide on mobile, two on tablet, three on desktop, with the gap widening as it goes. Narrow the window on the published page to watch it step down.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Responsive slides per view',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 3,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 32,
+					},
+					numbered( 6, 'Slide' )
+				),
+			},
+			{
+				title: 'Fade',
+				note: 'Cross-fades between slides. Every effect except Slide is locked to one slide per view — the controls grey themselves out.',
+				slider: slider(
+					{
+						ariaLabel: 'Fade effect',
+						effect: 'fade',
+						speed: 700,
+						loop: true,
+					},
+					numbered( 3, 'Fade' )
+				),
+			},
+			{
+				title: 'Flip',
+				note: 'A 3D flip, with slide shadows off so the colours stay flat.',
+				slider: slider(
+					{ ariaLabel: 'Flip effect', effect: 'flip', speed: 600, loop: true },
+					numbered( 3, 'Flip' )
+				),
+			},
+			{
+				title: 'Creative',
+				note: 'The outgoing slide translates away while the next one arrives over it.',
+				slider: slider(
+					{
+						ariaLabel: 'Creative effect',
+						effect: 'creative',
+						speed: 800,
+						loop: true,
+					},
+					numbered( 3, 'Creative' )
+				),
+			},
+			{
+				title: 'Autoplay, with a pause button',
+				note: 'Advances every three seconds, pauses when the pointer is over it, and renders a real pause control — autoplay that cannot be stopped is an accessibility failure.',
+				slider: slider(
+					{
+						ariaLabel: 'Autoplay',
+						effect: 'slide',
+						loop: true,
+						autoplay: true,
+						autoplayDelay: 3000,
+						autoplayPauseOnHover: true,
+						autoplayShowPauseButton: true,
+						equalHeight: true,
+					},
+					numbered( 4, 'Autoplay' )
+				),
+			},
+			{
+				title: 'Peek at the neighbours',
+				note: 'Overflow lets the slides either side show past the edges. Slide effect only, and it keeps an extra looped slide on each side so the peek is never blank.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Overflow peek',
+						effect: 'slide',
+						loop: true,
+						overflow: true,
+						equalHeight: true,
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 1,
+						slidesPerViewDesktop: 1,
+						spaceBetweenMobile: 20,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 28,
+					},
+					numbered( 5, 'Peek' )
+				),
+			},
+			{
+				title: 'Styled controls',
+				note: 'Arrow colour, background, size and corner radius, plus pagination colours and dot size — all per slider, all in the sidebar. These arrows are large and square.',
+				slider: slider(
+					{
+						ariaLabel: 'Styled controls',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						arrowColor: '#211f1a',
+						arrowBackground: '#f5f1e8',
+						arrowBorderRadius: 8,
+						arrowSize: 64,
+						paginationColor: '#a05c3b',
+						paginationColorInactive: 'rgba(245,241,232,0.45)',
+						paginationSize: 16,
+					},
+					numbered( 4, 'Styled' )
+				),
+			},
+			{
+				title: 'Minimal chrome',
+				note: 'Arrows off, pagination off, keyboard still on. Drag it, or focus it on the published page and use the arrow keys.',
+				slider: slider(
+					{
+						ariaLabel: 'No arrows or pagination',
+						effect: 'slide',
+						loop: true,
+						arrows: false,
+						pagination: false,
+						keyboard: true,
+						equalHeight: true,
+					},
+					numbered( 4, 'Bare' )
+				),
+			},
+			{
+				title: 'Equal height',
+				note: 'These slides hold wildly different amounts of text. With equal height on, they all match the tallest instead of the slider resizing as it moves.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Equal height',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 2,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 24,
+					},
+					[
+						colourSlide( 0, 'Short', 'One line.' ),
+						colourSlide(
+							1,
+							'Rather longer',
+							'This slide carries several sentences of copy so that it stands a good deal taller than its neighbour. Turn equal height off in the sidebar and the whole slider will start resizing itself as you move between the two, which is the behaviour you usually do not want.'
+						),
+						colourSlide( 2, 'Middling', 'Two lines, give or take, of supporting text.' ),
+						colourSlide( 3, 'Short again', 'One line.' ),
+					]
+				),
+			},
+			{
+				title: 'Slides are just blocks',
+				note: 'Gradient, border, shadow, minimum height, padding and typography come from the controls WordPress gives every block — GlidePress adds none of them. Select a slide to see.',
+				slider: slider(
+					{
+						ariaLabel: 'Slide styling',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+					},
+					[
+						slide( 'Gradient', 'A gradient background, from the colour panel.', {
+							contentSpacing: 'evenly',
+							style: {
+								color: {
+									gradient:
+										'linear-gradient(135deg, #2c3e66 0%, #5a4a6b 100%)',
+									text: CREAM,
+								},
+								spacing: {
+									padding: {
+										top: '2.5rem',
+										right: '2rem',
+										bottom: '2.5rem',
+										left: '2rem',
+									},
 								},
 							},
-						},
-					} ),
-					slide( 'Border and shadow', 'A thick border, a rounded corner and a drop shadow.', {
-						contentSpacing: 'evenly',
-						style: {
-							color: { background: CREAM, text: '#211f1a' },
-							border: {
-								color: '#a05c3b',
-								width: '4px',
-								style: 'solid',
-								radius: '16px',
-							},
-							shadow: 'var(--wp--preset--shadow--natural)',
-							spacing: {
-								padding: {
-									top: '2.5rem',
-									right: '2rem',
-									bottom: '2.5rem',
-									left: '2rem',
+						} ),
+						slide( 'Border and shadow', 'A thick border, a rounded corner and a drop shadow.', {
+							contentSpacing: 'evenly',
+							style: {
+								color: { background: CREAM, text: '#211f1a' },
+								border: {
+									color: '#a05c3b',
+									width: '4px',
+									style: 'solid',
+									radius: '16px',
+								},
+								shadow: 'var(--wp--preset--shadow--natural)',
+								spacing: {
+									padding: {
+										top: '2.5rem',
+										right: '2rem',
+										bottom: '2.5rem',
+										left: '2rem',
+									},
 								},
 							},
-						},
-					} ),
-					slide( 'Minimum height', 'A minimum height set on the slide itself, with the content spread apart.', {
-						contentSpacing: 'evenly',
-						style: {
-							color: { background: MOSS, text: CREAM },
-							dimensions: { minHeight: '340px' },
-							spacing: {
-								padding: {
-									top: '2rem',
-									right: '2rem',
-									bottom: '2rem',
-									left: '2rem',
+						} ),
+						slide( 'Minimum height', 'A minimum height set on the slide itself, with the content spread apart.', {
+							contentSpacing: 'evenly',
+							style: {
+								color: { background: MOSS, text: CREAM },
+								dimensions: { minHeight: '340px' },
+								spacing: {
+									padding: {
+										top: '2rem',
+										right: '2rem',
+										bottom: '2rem',
+										left: '2rem',
+									},
 								},
+								typography: { fontSize: '1.35rem' },
 							},
-							typography: { fontSize: '1.35rem' },
-						},
-					} ),
-				]
-			),
-		},
-		{
-			title: 'Hide a slide per breakpoint',
-			note: 'Each of these is hidden at one screen size. The editor always shows all three; on the published page the matching one is removed before Swiper counts the slides, so the pagination stays honest.',
-			slider: slider(
-				{
-					ariaLabel: 'Responsive visibility',
-					effect: 'slide',
-					loop: false,
-					equalHeight: true,
+						} ),
+					]
+				),
+			},
+			{
+				title: 'Hide a slide per breakpoint',
+				note: 'Each of these is hidden at one screen size. The editor always shows all three; on the published page the matching one is removed before Swiper counts the slides, so the pagination stays honest.',
+				slider: slider(
+					{
+						ariaLabel: 'Responsive visibility',
+						effect: 'slide',
+						loop: false,
+						equalHeight: true,
+					},
+					[
+						slide( 'Not on mobile', 'This slide disappears on narrow screens.', {
+							hideOnMobile: true,
+							contentSpacing: 'evenly',
+							style: {
+								color: { background: NAVY, text: CREAM },
+								spacing: { padding: { top: '1.75rem', right: '1.5rem', bottom: '1.75rem', left: '1.5rem' } },
+								border: { radius: '6px' },
+							},
+						} ),
+						slide( 'Not on tablet', 'This one goes at tablet widths.', {
+							hideOnTablet: true,
+							contentSpacing: 'evenly',
+							style: {
+								color: { background: CLAY, text: CREAM },
+								spacing: { padding: { top: '1.75rem', right: '1.5rem', bottom: '1.75rem', left: '1.5rem' } },
+								border: { radius: '6px' },
+							},
+						} ),
+						slide( 'Not on desktop', 'And this one is for small screens only.', {
+							hideOnDesktop: true,
+							contentSpacing: 'evenly',
+							style: {
+								color: { background: MOSS, text: CREAM },
+								spacing: { padding: { top: '1.75rem', right: '1.5rem', bottom: '1.75rem', left: '1.5rem' } },
+								border: { radius: '6px' },
+							},
+						} ),
+					]
+				),
+			},
+			{
+				title: 'Full width',
+				note: 'Alignment is the standard block one: none, wide or full. This slider is full.',
+				slider: slider(
+					{
+						align: 'full',
+						ariaLabel: 'Full width',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 4,
+						spaceBetweenMobile: 12,
+						spaceBetweenTablet: 16,
+						spaceBetweenDesktop: 20,
+					},
+					numbered( 6, 'Full' )
+				),
 				},
-				[
-					slide( 'Not on mobile', 'This slide disappears on narrow screens.', {
-						hideOnMobile: true,
-						contentSpacing: 'evenly',
-						style: {
-							color: { background: NAVY, text: CREAM },
-							spacing: { padding: { top: '1.75rem', right: '1.5rem', bottom: '1.75rem', left: '1.5rem' } },
-							border: { radius: '6px' },
-						},
-					} ),
-					slide( 'Not on tablet', 'This one goes at tablet widths.', {
-						hideOnTablet: true,
-						contentSpacing: 'evenly',
-						style: {
-							color: { background: CLAY, text: CREAM },
-							spacing: { padding: { top: '1.75rem', right: '1.5rem', bottom: '1.75rem', left: '1.5rem' } },
-							border: { radius: '6px' },
-						},
-					} ),
-					slide( 'Not on desktop', 'And this one is for small screens only.', {
-						hideOnDesktop: true,
-						contentSpacing: 'evenly',
-						style: {
-							color: { background: MOSS, text: CREAM },
-							spacing: { padding: { top: '1.75rem', right: '1.5rem', bottom: '1.75rem', left: '1.5rem' } },
-							border: { radius: '6px' },
-						},
-					} ),
-				]
-			),
-		},
-		{
-			title: 'Full width',
-			note: 'Alignment is the standard block one: none, wide or full. This slider is full.',
-			slider: slider(
-				{
-					align: 'full',
-					ariaLabel: 'Full width',
-					effect: 'slide',
-					loop: true,
-					equalHeight: true,
-					slidesPerViewMobile: 1,
-					slidesPerViewTablet: 2,
-					slidesPerViewDesktop: 4,
-					spaceBetweenMobile: 12,
-					spaceBetweenTablet: 16,
-					spaceBetweenDesktop: 20,
-				},
-				numbered( 6, 'Full' )
-			),
-		},
-	];
+		];
+	}
 
 	function buildDocument() {
 		var blocks = [
@@ -445,7 +452,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			),
 		];
 
-		SECTIONS.forEach( function ( section ) {
+		buildSections().forEach( function ( section ) {
 			blocks.push( heading( section.title ) );
 			blocks.push( paragraph( section.note ) );
 			blocks.push( section.slider );

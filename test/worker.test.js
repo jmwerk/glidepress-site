@@ -439,7 +439,7 @@ describe("Live demo", () => {
 		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
 		const source = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
 
-		const calls = { resetBlocks: null, editPost: null, selected: null, notices: [] };
+		const calls = { resetBlocks: null, editPost: null, selected: null, notices: [], created: 0 };
 		const editor = {
 			getCurrentPost: () => ({ id: 4, status: "auto-draft" }),
 			isCleanNewPost: () => true,
@@ -463,12 +463,10 @@ describe("Live demo", () => {
 			domReady: (callback) => callback(),
 			blocks: {
 				getBlockType: (name) => (blockRegistered || !name.startsWith("glidepress/") ? { name } : null),
-				createBlock: (name, attributes, innerBlocks = []) => ({
-					name,
-					attributes,
-					innerBlocks,
-					clientId: `id-${++clientId}`,
-				}),
+				createBlock: (name, attributes, innerBlocks = []) => {
+					calls.created++;
+					return { name, attributes, innerBlocks, clientId: `id-${++clientId}` };
+				},
 			},
 			data: {
 				select: (store) =>
@@ -519,6 +517,16 @@ describe("Live demo", () => {
 		// The inspector should open on a slider, not the intro paragraph.
 		expect(calls.selected).toBe(sliders[0].clientId);
 		expect(calls.notices).toEqual([]);
+	});
+
+	it("builds no blocks until the slider block type is registered", async () => {
+		// The bug this guards: the section table was a plain array, so it ran
+		// createBlock as the script was evaluated — before the plugin had
+		// registered anything. The throw killed the whole script including the
+		// domReady handler, so the editor stayed empty with nothing logged.
+		const calls = await runSeed({ blockRegistered: false });
+		expect(calls.created).toBe(0);
+		expect(calls.resetBlocks).toBeNull();
 	});
 
 	it("still seeds when isCleanNewPost is missing from core/editor", async () => {
