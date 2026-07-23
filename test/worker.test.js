@@ -263,7 +263,14 @@ describe("Changelog page", () => {
 		expect(html).toContain("No releases have been published yet.");
 	});
 
-	it("rejects non-GET methods with 405", async () => {
+	it("answers HEAD with headers and no body", async () => {
+		await env.REPO.put("versions", JSON.stringify([]));
+		const res = await fetchWorker("/changelog", { method: "HEAD" });
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+	});
+
+	it("rejects non-GET/HEAD methods with 405", async () => {
 		const res = await fetchWorker("/changelog", { method: "POST" });
 		expect(res.status).toBe(405);
 	});

@@ -286,7 +286,9 @@ function renderNotes(notes) {
  * rendered here.
  */
 async function handleChangelog(request, env) {
-	if (request.method !== "GET") {
+	// HEAD included: link checkers and monitors probe public pages with it
+	// (the runtime strips the body from HEAD responses automatically).
+	if (request.method !== "GET" && request.method !== "HEAD") {
 		return new Response("Method not allowed", { status: 405 });
 	}
 
