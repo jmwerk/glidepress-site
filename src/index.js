@@ -7,6 +7,12 @@
  *   GET /packages.json                        Composer metadata for all published versions
  *   GET /dist/glidepress-slider-<ver>.zip     Dist archive for one version
  *
+ * Dist responses carry an ETag (the zip's sha1, quoted) and answer a matching
+ * If-None-Match with 304. packages.json intentionally has no ETag: Composer 2
+ * revalidates repo metadata only via If-Modified-Since/Last-Modified
+ * (ComposerRepository::fetchFileIfLastModified; CurlDownloader has no
+ * If-None-Match support), so a metadata ETag would never be exercised.
+ *
  * Admin API routes (Bearer auth with the ADMIN_KEY worker secret; the token
  * management UI itself is a static asset at public/admin/, served before this
  * code runs):
@@ -19,8 +25,16 @@
  * KV schema (binding REPO):
  *   token:<sha256-hex-of-token> -> JSON { "label": "...", "created": "...", "prefix": "gp_1234567",
  *                                         "lastUsed"?: "...", "downloads"?: 0 }
- *   versions       -> JSON [ { "version", "sha1", "time" }, ... ]
+ *   versions       -> JSON [ { "version", "sha1", "time",
+ *                              "require"?: { "php": ">=8.1", ... },
+ *                              "type"?: "wordpress-plugin",
+ *                              "extra"?: { ... } }, ... ]
  *   dist:<version> -> zip binary
+ *
+ * require/type/extra are optional per-version fields written by the plugin CI
+ * at publish time. packages.json falls back to require {"php": ">=7.4"} and
+ * type "wordpress-plugin" (and omits extra) for entries that predate them, so
+ * a release can change its constraints without a Worker deploy.
  *
  * Legacy keys token:<plaintext-token> (pre-hashing) are still accepted by
  * authorize() and are migrated to the hashed form on first successful use.
@@ -119,6 +133,16 @@ async function recordUsage(token, record, isDist, env) {
 	await env.REPO.put(`token:${await sha256Hex(token)}`, JSON.stringify(updated));
 }
 
+// True when an If-None-Match header matches the entity tag, per RFC 9110 weak
+// comparison (W/ prefixes ignored) — or is "*". `etag` is the quoted form.
+function ifNoneMatchSatisfied(header, etag) {
+	if (!header) return false;
+	return header.split(",").some((t) => {
+		const tag = t.trim();
+		return tag === "*" || tag.replace(/^W\//, "") === etag;
+	});
+}
+
 function unauthorized() {
 	return new Response("Unauthorized", {
 		status: 401,
@@ -168,8 +192,11 @@ async function handleComposer(request, env, ctx, url) {
 		const releases = versions.map((v) => ({
 			name: PACKAGE,
 			version: v.version,
-			type: "wordpress-plugin",
-			require: { php: ">=7.4" },
+			// Per-version metadata from the publishing CI wins; the fallbacks are
+			// the values every release carried before these fields existed.
+			type: v.type || "wordpress-plugin",
+			require: v.require || { php: ">=7.4" },
+			...(v.extra ? { extra: v.extra } : {}),
 			dist: {
 				type: "zip",
 				url: `${url.origin}/dist/glidepress-slider-${v.version}.zip`,
@@ -185,14 +212,31 @@ async function handleComposer(request, env, ctx, url) {
 		});
 	}
 
-	const zip = await env.REPO.get(`dist:${distMatch[1]}`, "stream");
+	// Dist download. The ETag is the zip's sha1 from the versions list — the
+	// same value packages.json publishes as the dist shasum, so the validator a
+	// client saw in metadata matches the one on the download. Composer itself
+	// never revalidates dists (it trusts its local cache unconditionally), but
+	// the ETag lets other HTTP clients skip re-transferring a zip they hold.
+	const version = distMatch[1];
+	const meta = ((await env.REPO.get("versions", "json")) || []).find((v) => v.version === version);
+	const etag = meta?.sha1 ? `"${meta.sha1}"` : null;
+	// Answered from the versions entry alone — no blob read. (A half-failed
+	// publish could leave an entry without a blob; a 304 for a client that
+	// already holds the matching bytes is still correct then.)
+	if (etag && ifNoneMatchSatisfied(request.headers.get("If-None-Match"), etag)) {
+		return new Response(null, {
+			status: 304,
+			headers: { ETag: etag, "Cache-Control": "private, max-age=31536000, immutable" },
+		});
+	}
+	const zip = await env.REPO.get(`dist:${version}`, "stream");
 	if (!zip) return new Response("Not found", { status: 404 });
-	return new Response(zip, {
-		headers: {
-			"Content-Type": "application/zip",
-			"Cache-Control": "private, max-age=31536000, immutable",
-		},
-	});
+	const headers = {
+		"Content-Type": "application/zip",
+		"Cache-Control": "private, max-age=31536000, immutable",
+	};
+	if (etag) headers.ETag = etag;
+	return new Response(zip, { headers });
 }
 
 // ---------------------------------------------------------------------------

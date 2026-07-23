@@ -13,8 +13,13 @@ One Cloudflare Worker serving two things on the same domain:
 - **`/packages.json`, `/dist/*.zip`** — the private Composer repository for
   `glidepress/glidepress-slider` (HTTP basic auth; the password is an access
   token). Package zips and version metadata live in Workers KV — releases are
-  published into KV by the plugin repo's CI, so deploying this Worker is never
-  needed to ship a plugin version.
+  published into KV by the plugin repo's CI, including optional per-version
+  `require`/`type`/`extra` overrides (with fallbacks for older entries), so
+  deploying this Worker is never needed to ship a plugin version, even one
+  that changes its Composer constraints. Dist downloads carry an ETag (the
+  zip's sha1) and answer a matching `If-None-Match` with `304`; `packages.json`
+  deliberately doesn't — Composer 2 only revalidates metadata via
+  `If-Modified-Since` (see the header comment in `src/index.js`).
 - **`/admin`** — admin UI. The page itself is a static asset
   (`public/admin/`); it talks to the Worker's `/admin/api/*` JSON routes,
   unlocked with the `ADMIN_KEY` worker secret. Two panels:
@@ -63,7 +68,8 @@ Tests run with [Vitest](https://vitest.dev/) inside the actual Workers runtime
 via [`@cloudflare/vitest-pool-workers`](https://developers.cloudflare.com/workers/testing/vitest-integration/),
 with bindings taken from `wrangler.toml` (KV state persists across tests
 within a run, so tests seed distinct keys). Covered: Composer auth (401
-challenge, valid-token `packages.json` shape, dist downloads), the
+challenge, valid-token `packages.json` shape, dist downloads), per-version
+KV metadata overrides vs. fallbacks, dist ETag/`If-None-Match` 304s, the
 no-challenge 404 for stray paths, per-token usage tracking (last-used /
 download counts and the daily write-skip), the admin token API
 (create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`), and the

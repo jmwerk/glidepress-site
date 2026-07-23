@@ -88,6 +88,42 @@ describe("Composer routes", () => {
 		});
 	});
 
+	it("packages.json prefers per-version require/type/extra from KV over the fallbacks", async () => {
+		await seedToken();
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([
+				// Bare entry (pre-dates the optional fields) -> fallbacks.
+				{ version: "1.0.0", sha1: "a".repeat(40), time: "2026-01-02T00:00:00+00:00" },
+				// Entry with CI-published metadata -> used verbatim.
+				{
+					version: "2.0.0",
+					sha1: "b".repeat(40),
+					time: "2026-03-01T00:00:00+00:00",
+					require: { php: ">=8.1", "composer/installers": "^2.0" },
+					type: "wordpress-muplugin",
+					extra: { "installer-name": "glidepress-slider" },
+				},
+			])
+		);
+
+		const res = await fetchWorker("/packages.json", { headers: basicAuth(TOKEN) });
+		const releases = (await res.json()).packages["glidepress/glidepress-slider"];
+
+		expect(releases[0]).toMatchObject({
+			version: "1.0.0",
+			type: "wordpress-plugin",
+			require: { php: ">=7.4" },
+		});
+		expect(releases[0]).not.toHaveProperty("extra");
+		expect(releases[1]).toMatchObject({
+			version: "2.0.0",
+			type: "wordpress-muplugin",
+			require: { php: ">=8.1", "composer/installers": "^2.0" },
+			extra: { "installer-name": "glidepress-slider" },
+		});
+	});
+
 	it("GET /dist/glidepress-slider-1.0.0.zip streams the KV blob with auth", async () => {
 		await seedToken();
 		const zipBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]); // "PK.." + payload
@@ -97,6 +133,50 @@ describe("Composer routes", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("application/zip");
 		expect(new Uint8Array(await res.arrayBuffer())).toEqual(zipBytes);
+	});
+
+	it("dist responses carry an ETag from the version's sha1 and answer If-None-Match with 304", async () => {
+		await seedToken();
+		const sha1 = "c".repeat(40);
+		await env.REPO.put(
+			"versions",
+			JSON.stringify([{ version: "2.5.0", sha1, time: "2026-04-01T00:00:00+00:00" }])
+		);
+		await env.REPO.put("dist:2.5.0", new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+
+		const path = "/dist/glidepress-slider-2.5.0.zip";
+		const full = await fetchWorker(path, { headers: basicAuth(TOKEN) });
+		expect(full.status).toBe(200);
+		expect(full.headers.get("ETag")).toBe(`"${sha1}"`);
+
+		// Matching validator (strong or weak) -> 304 with no body.
+		for (const ifNoneMatch of [`"${sha1}"`, `W/"${sha1}"`, `"other", "${sha1}"`]) {
+			const res = await fetchWorker(path, {
+				headers: { ...basicAuth(TOKEN), "If-None-Match": ifNoneMatch },
+			});
+			expect(res.status).toBe(304);
+			expect(res.headers.get("ETag")).toBe(`"${sha1}"`);
+			expect(await res.text()).toBe("");
+		}
+
+		// Stale validator -> full 200 body.
+		const stale = await fetchWorker(path, {
+			headers: { ...basicAuth(TOKEN), "If-None-Match": `"${"d".repeat(40)}"` },
+		});
+		expect(stale.status).toBe(200);
+		expect(new Uint8Array(await stale.arrayBuffer())).toEqual(new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+	});
+
+	it("dist for a version absent from the versions list has no ETag and ignores If-None-Match", async () => {
+		await seedToken();
+		await env.REPO.put("versions", JSON.stringify([]));
+		await env.REPO.put("dist:0.9.9", new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+
+		const res = await fetchWorker("/dist/glidepress-slider-0.9.9.zip", {
+			headers: { ...basicAuth(TOKEN), "If-None-Match": "*" },
+		});
+		expect(res.status).toBe(200);
+		expect(res.headers.get("ETag")).toBeNull();
 	});
 
 	it("GET /dist for a missing version returns 404", async () => {
