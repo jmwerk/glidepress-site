@@ -309,39 +309,49 @@ kbd {
 	height: 44px;
 	border: 0;
 	border-radius: 50%;
-	background: rgba(20, 18, 14, 0.55);
-	-webkit-backdrop-filter: blur(8px);
-	backdrop-filter: blur(8px);
+	background: rgba(16, 14, 10, 0.82); /* near-opaque so it stays consistent on every slide colour */
 	color: var(--cream);
 	cursor: pointer;
-	transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+	transition: background 0.15s ease, color 0.15s ease;
 }
 
 .gp-demo .swiper-button-prev:hover,
 .gp-demo .swiper-button-next:hover {
 	background: var(--cream);
 	color: var(--ink);
-	transform: scale(1.06);
 }
 
-/* Crisp custom chevron in place of Swiper's default icon-font glyph. */
+/*
+ * This Swiper build injects its own <svg class="swiper-navigation-icon"> into
+ * each button. Hide it and draw our own chevron so we control size and weight.
+ */
+.gp-demo .swiper-navigation-icon { display: none; }
+
+/*
+ * Chevron drawn as an SVG mask filled with currentColor: crisp and rounded at
+ * any size, recolours on hover, and none of the rotated-border guesswork.
+ */
 .gp-demo .swiper-button-prev::after,
 .gp-demo .swiper-button-next::after {
 	content: "";
-	width: 9px;
-	height: 9px;
-	border: solid currentColor;
-	border-width: 2px 2px 0 0;
+	width: 20px;
+	height: 20px;
+	background: currentColor;
+	-webkit-mask: center / 20px no-repeat var(--gp-chevron);
+	mask: center / 20px no-repeat var(--gp-chevron);
 }
 
-.gp-demo .swiper-button-next::after { transform: translateX(-2px) rotate(45deg); }
-.gp-demo .swiper-button-prev::after { transform: translateX(2px) rotate(-135deg); }
+.gp-demo .swiper-button-next::after {
+	--gp-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E");
+}
+
+.gp-demo .swiper-button-prev::after {
+	--gp-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 6l-6 6 6 6'/%3E%3C/svg%3E");
+}
 
 @media (prefers-reduced-motion: reduce) {
 	.gp-demo .swiper-button-prev,
 	.gp-demo .swiper-button-next { transition: none; }
-	.gp-demo .swiper-button-prev:hover,
-	.gp-demo .swiper-button-next:hover { transform: none; }
 }
 
 .gp-demo .swiper-button-prev:focus-visible,
