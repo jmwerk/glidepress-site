@@ -254,9 +254,9 @@ kbd {
 	font-family: var(--mono);
 	font-size: 0.78rem;
 	color: var(--ink-soft);
-	text-align: right;
+	text-align: center;
 	max-width: 880px;
-	margin: 0.6rem auto 0;
+	margin: 0.9rem auto 0;
 }
 
 .effects-grid {
@@ -273,7 +273,7 @@ kbd {
 	justify-content: space-between;
 	align-items: flex-start;
 	min-height: 230px;
-	padding: 1.25rem 1.5rem;
+	padding: 1.25rem 1.5rem 2.5rem; /* extra bottom room clears the pagination */
 	color: var(--cream);
 }
 
@@ -292,7 +292,6 @@ kbd {
 	font-size: clamp(1.3rem, 2.6vw, 1.9rem);
 	line-height: 1.2;
 	max-width: 16em;
-	padding-bottom: 1.5rem; /* clear the pagination bullets */
 }
 
 .slide-card--navy { background: var(--navy); }
@@ -304,17 +303,31 @@ kbd {
 
 .gp-demo .swiper-button-prev,
 .gp-demo .swiper-button-next {
-	width: 40px;
-	height: 40px;
-	border: 1px solid rgba(245, 241, 232, 0.5);
+	width: 42px;
+	height: 42px;
+	border: 1px solid rgba(245, 241, 232, 0.6);
 	border-radius: 50%;
-	background: rgba(0, 0, 0, 0.25);
+	background: rgba(20, 18, 14, 0.4);
+	-webkit-backdrop-filter: blur(6px);
+	backdrop-filter: blur(6px);
 	color: var(--cream);
 	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.gp-demo .swiper-button-prev:hover,
+.gp-demo .swiper-button-next:hover {
+	background: rgba(20, 18, 14, 0.6);
+	border-color: var(--cream);
 }
 
 .gp-demo .swiper-button-prev::after,
-.gp-demo .swiper-button-next::after { font-size: 0.9rem; }
+.gp-demo .swiper-button-next::after { font-size: 1.05rem; }
+
+@media (prefers-reduced-motion: reduce) {
+	.gp-demo .swiper-button-prev,
+	.gp-demo .swiper-button-next { transition: none; }
+}
 
 .gp-demo .swiper-button-prev:focus-visible,
 .gp-demo .swiper-button-next:focus-visible {
@@ -322,14 +335,21 @@ kbd {
 	outline-offset: 2px;
 }
 
+.gp-demo .swiper-pagination { --swiper-pagination-bottom: 14px; }
+
 .gp-demo .swiper-pagination-bullet {
-	width: 7px;
-	height: 7px;
+	width: 8px;
+	height: 8px;
 	background: var(--cream);
-	opacity: 0.45;
+	opacity: 0.4;
+	transition: opacity 0.15s ease;
 }
 
 .gp-demo .swiper-pagination-bullet-active { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+	.gp-demo .swiper-pagination-bullet { transition: none; }
+}
 
 /* ------------------------------ details --------------------------- */
 
@@ -466,13 +486,33 @@ kbd {
 .inspector__toggle--on::after { left: auto; right: 2px; }
 
 .inspector__range {
+	position: relative;
 	flex: 1;
 	max-width: 130px;
-	height: 3px;
+	height: 4px;
+	border-radius: 99px;
 	background: var(--line);
 }
 
-.inspector__range i { display: block; height: 100%; background: var(--accent); }
+.inspector__range i {
+	display: block;
+	height: 100%;
+	border-radius: 99px;
+	background: var(--accent);
+}
+
+.inspector__range i::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 0;
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	background: var(--card);
+	border: 2px solid var(--accent);
+	transform: translate(50%, -50%);
+}
 
 /* ----------------------------- changelog -------------------------- */
 
