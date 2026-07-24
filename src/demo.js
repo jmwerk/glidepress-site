@@ -465,13 +465,161 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 					numbered( 6, 'Full' )
 				),
 				},
+			{
+				title: 'Fraction pagination',
+				note: 'Pagination shown as a "1 / N" counter rather than dots. The pagination type is a sidebar control: bullets, this fraction, or a progress bar.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Fraction pagination',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						paginationType: 'fraction',
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 2,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 24,
+					},
+					numbered( 6, 'Slide' )
+				),
+			},
+			{
+				title: 'Progress bar pagination',
+				note: 'A thin progress bar in place of the dots. It always hugs the bottom edge of the slider and fills as you move through the slides.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Progress bar pagination',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						paginationType: 'progressbar',
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 3,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 24,
+					},
+					numbered( 6, 'Slide' )
+				),
+			},
+			{
+				title: 'Pagination below the slides',
+				note: 'Bullets and the fraction can sit overlaid on the slides, which is the default, or drop into normal flow beneath them. This one renders its dots below.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Pagination below',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						paginationPlacement: 'below',
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 2,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 24,
+					},
+					numbered( 5, 'Slide' )
+				),
+			},
+			{
+				title: 'Advance a group at a time',
+				note: 'With more than one slide per view, each arrow, swipe or keyboard step can move a whole group rather than a single slide. It is set per breakpoint and never exceeds what that breakpoint shows: here desktop shows three and steps three.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Slides to advance',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 3,
+						slidesPerGroupMobile: 1,
+						slidesPerGroupTablet: 2,
+						slidesPerGroupDesktop: 3,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 24,
+					},
+					numbered( 6, 'Slide' )
+				),
+			},
+			{
+				title: 'Drag and swipe off',
+				note: 'Mouse drag and touch swipe turned off, with the arrows, pagination and keyboard left on. On the published page this slider will not follow the pointer — use the arrows, or focus it and press the arrow keys.',
+				slider: slider(
+					{
+						ariaLabel: 'Drag and swipe off',
+						effect: 'slide',
+						loop: true,
+						draggable: false,
+						keyboard: true,
+						equalHeight: true,
+					},
+					numbered( 4, 'Fixed' )
+				),
+			},
+			{
+				title: 'A slider inside a slider',
+				note: 'One slide holds a slider of its own. Each slider drives only itself, so dragging or arrow-keying the inner one never moves the outer. Publish and view to see both run on their own.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Nested sliders',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+					},
+					[
+						colourSlide( 0, 'Outer slide', 'An ordinary slide. The next one holds a slider of its own.' ),
+						wp.blocks.createBlock(
+							'glidepress/slide',
+							{
+								contentSpacing: 'evenly',
+								style: {
+									color: { background: SLATE, text: CREAM },
+									spacing: {
+										padding: {
+											top: '1.75rem',
+											right: '1.5rem',
+											bottom: '1.75rem',
+											left: '1.5rem',
+										},
+									},
+									border: { radius: '6px' },
+								},
+							},
+							[
+								heading( 'A nested slider', 3 ),
+								slider(
+									{
+										ariaLabel: 'Inner slider',
+										effect: 'slide',
+										loop: true,
+										equalHeight: true,
+									},
+									numbered( 3, 'Inner' )
+								),
+							]
+						),
+						colourSlide( 2, 'Outer slide', 'And back to an ordinary slide.' ),
+					]
+				),
+			},
 		];
 	}
 
 	function buildDocument() {
 		var blocks = [
 			paragraph(
-				'Every section below is a real GlidePress slider, configured to show one thing. Select any slider and its settings appear in the sidebar. The editor lays slides out side by side rather than running them — <strong>publish the page and view it</strong> to see the effects, autoplay and responsive behaviour for real.'
+				'Every section below is a real GlidePress slider, configured to show one thing. Select any slider and its settings appear in the sidebar. The editor lays slides out side by side rather than running them — <strong>publish the page and view it</strong> to see the effects, autoplay and responsive behaviour for real. You can also build a slider from an existing core Gallery: select one, open the block toolbar transform menu and choose GlidePress Slider — each image becomes its own slide, and the transform runs the other way too.'
 			),
 		];
 
@@ -949,9 +1097,10 @@ ${siteHeader("/demo")}
 			<p class="section__lead">
 				The link below opens an actual WordPress &mdash; PHP compiled to
 				WebAssembly, running in your browser &mdash; with GlidePress installed
-				and a kitchen-sink post already written: a dozen sliders, one per
+				and a kitchen-sink post already written: eighteen sliders, one per
 				feature, from the four effects to autoplay, peeking neighbours, styled
-				controls and per-breakpoint visibility. Select any of them and its
+				controls, per-breakpoint visibility, the pagination styles, advancing
+				in groups and a slider nested inside another. Select any of them and its
 				settings are right there in the sidebar.
 			</p>
 			<p class="section__lead">

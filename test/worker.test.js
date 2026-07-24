@@ -451,6 +451,12 @@ describe("Live demo", () => {
 			"hideOnDesktop",
 			"align: 'full'",
 			"slidesPerViewDesktop",
+			"paginationType: 'fraction'",
+			"paginationType: 'progressbar'",
+			"paginationPlacement: 'below'",
+			"slidesPerGroupDesktop",
+			"draggable: false",
+			"'Inner slider'",
 		]) {
 			expect(seed, `seed is missing ${attribute}`).toContain(attribute);
 		}
@@ -592,7 +598,7 @@ describe("Live demo", () => {
 		expect(calls.resetBlocks).not.toBeNull();
 
 		const sliders = calls.resetBlocks.filter((b) => b.name === "glidepress/slider");
-		expect(sliders).toHaveLength(12);
+		expect(sliders).toHaveLength(18);
 		// Every slider holds slides, and every slide holds real content blocks.
 		for (const slider of sliders) {
 			expect(slider.innerBlocks.length).toBeGreaterThan(2);

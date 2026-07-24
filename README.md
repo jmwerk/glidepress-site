@@ -29,9 +29,11 @@ One Cloudflare Worker serving two things on the same domain:
 - **`/demo`** — live editable demo. Links out to [WordPress
   Playground](https://wordpress.org/playground/) (WordPress + PHP compiled to
   WebAssembly) in a new tab, with the plugin installed and a
-  kitchen-sink post seeded in — twelve sliders, one per feature (the four
+  kitchen-sink post seeded in — eighteen sliders, one per feature (the four
   effects, autoplay with its pause button, overflow peek, styled controls,
-  equal height, per-breakpoint slide visibility, full-width alignment) — so
+  equal height, per-breakpoint slide visibility, full-width alignment,
+  fraction and progress-bar pagination, pagination below the slides,
+  advancing in groups, drag/swipe off, and a nested slider) — so
   visitors drive the real block editor and the real frontend rather than a
   mock-up. The editor lays slides out side by side rather than running Swiper,
   so the page copy pushes visitors to publish and view. Playground is *linked*,
