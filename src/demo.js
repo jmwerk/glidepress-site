@@ -291,6 +291,49 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 				),
 			},
 			{
+				title: 'Arrows in the gutter',
+				note: 'Arrow placement is a sidebar control. Overlay is the default and lays the arrows over the slides; Gutter narrows the slides instead, so the arrows sit beside them and never cover any content.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Gutter arrow placement',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						arrowPlacement: 'gutter',
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 2,
+						slidesPerViewDesktop: 3,
+						spaceBetweenMobile: 16,
+						spaceBetweenTablet: 24,
+						spaceBetweenDesktop: 24,
+					},
+					numbered( 6, 'Gutter' )
+				),
+			},
+			{
+				title: 'Arrows inset on a full-bleed slider',
+				note: 'Inset keeps the slides full width — the backgrounds still reach both edges — and pads only their content inward so the arrows clear it. With Overlay on a full-width slider the arrows would sit over the slide edges, or off screen entirely.',
+				slider: slider(
+					{
+						align: 'full',
+						ariaLabel: 'Inset arrow placement',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+						arrowPlacement: 'inset',
+						slidesPerViewMobile: 1,
+						slidesPerViewTablet: 1,
+						slidesPerViewDesktop: 1,
+					},
+					[
+						colourSlide( 0, 'Inset', 'The background runs edge to edge; this text is padded in so the arrows have room.' ),
+						colourSlide( 1, 'Inset', 'Switch the panel to Overlay on the published page to see the arrows land on the copy instead.' ),
+						colourSlide( 2, 'Inset', 'Inset and Gutter both keep the arrows on screen at any width.' ),
+					]
+				),
+			},
+			{
 				title: 'Minimal chrome',
 				note: 'Arrows off, pagination off, keyboard still on. Drag it, or focus it on the published page and use the arrow keys.',
 				slider: slider(
@@ -1097,11 +1140,11 @@ ${siteHeader("/demo")}
 			<p class="section__lead">
 				The link below opens an actual WordPress &mdash; PHP compiled to
 				WebAssembly, running in your browser &mdash; with GlidePress installed
-				and a kitchen-sink post already written: eighteen sliders, one per
+				and a kitchen-sink post already written: twenty sliders, one per
 				feature, from the four effects to autoplay, peeking neighbours, styled
-				controls, per-breakpoint visibility, the pagination styles, advancing
-				in groups and a slider nested inside another. Select any of them and its
-				settings are right there in the sidebar.
+				controls, arrow placement, per-breakpoint visibility, the pagination
+				styles, advancing in groups and a slider nested inside another. Select
+				any of them and its settings are right there in the sidebar.
 			</p>
 			<p class="section__lead">
 				The editor lays slides out side by side rather than running them, so
@@ -1134,6 +1177,7 @@ ${siteHeader("/demo")}
 				<li>Resize the window on that page: slides per view steps 3&rarr;2&rarr;1, and the <i>Hide a slide per breakpoint</i> section drops a different slide at each size.</li>
 				<li>Tab to a slider and use <kbd>&larr;</kbd> and <kbd>&rarr;</kbd>. Slide changes are announced.</li>
 				<li>Let the autoplay slider run, then hover it, then use its pause button.</li>
+				<li>Open the <b>Arrows</b> panel and switch <b>Placement</b> between Overlay, Inset and Gutter &mdash; the preview in the panel shows where the arrows land, and the two placement sections show it for real.</li>
 				<li>Back in the editor, switch <b>Effect</b> on any slider and watch the slides-per-view controls grey out for everything but Slide.</li>
 				<li>Select a single slide and change its background, padding, border or shadow &mdash; those are stock WordPress controls, not ours.</li>
 				<li>Add a block inside a slide: an image, a button, a heading, columns.</li>

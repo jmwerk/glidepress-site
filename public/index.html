@@ -182,6 +182,15 @@
 					sliver of the neighbouring slides.</dd>
 				</div>
 				<div class="details__row">
+					<dt>Arrows where you want them</dt>
+					<dd>Arrows can sit <b>over</b> the slides, <b>inset</b> &mdash;
+					the slides stay full width, so a background still reaches both
+					edges, and only their content is padded clear &mdash; or in the
+					<b>gutters</b>, with the slides narrowed to make room. Inset and
+					gutter keep the arrows on screen at any width, full-bleed
+					included.</dd>
+				</div>
+				<div class="details__row">
 					<dt>Nothing loads for nothing</dt>
 					<dd>These are static blocks &mdash; no server-side rendering,
 					no database options, no settings screen. Scripts and styles are
@@ -270,7 +279,10 @@
 			<p class="footnote">
 				Also: pagination is never hidden from assistive technology while it
 				contains focusable buttons, and a slider saved without an ARIA
-				label falls back to a localised default rather than nothing.
+				label falls back to a localised default rather than nothing. In a
+				right-to-left locale the arrows swap sides, the chevrons mirror and
+				the slides flow the other way &mdash; taken from the page
+				direction, so there is nothing to configure.
 			</p>
 		</div>
 	</section>
