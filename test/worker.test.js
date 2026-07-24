@@ -401,6 +401,10 @@ describe("Live demo", () => {
 		const res = await demoFetch("/demo/blueprint.json");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		// It embeds a short-lived signed URL, so it must never be cached —
+		// a shared copy hands the same credential to every visitor.
+		expect(res.headers.get("Cache-Control")).toBe("no-store");
+		expect(res.headers.get("X-Robots-Tag")).toBe("noindex");
 
 		const blueprint = await res.json();
 		expect(blueprint.landingPage).toBe("/wp-admin/post-new.php");

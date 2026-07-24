@@ -895,7 +895,11 @@ async function handleBlueprint(request, env, url) {
 		headers: {
 			"Content-Type": "application/json",
 			"Access-Control-Allow-Origin": "*",
-			"Cache-Control": "public, max-age=300",
+			// Carries a short-lived signed download URL, so it must not be
+			// cached: a shared copy would hand the same credential to every
+			// visitor for the life of the cache entry.
+			"Cache-Control": "no-store",
+			"X-Robots-Tag": "noindex",
 		},
 	});
 }
