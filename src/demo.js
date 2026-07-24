@@ -1,7 +1,12 @@
 /**
  * Live editable demo: real WordPress, in the visitor's browser.
  *
- * /demo                        The page. Boots an iframe on click, not on load.
+ * /demo                        The page. Links out to Playground rather than
+ *                              embedding it: an editor in a cross-origin frame
+ *                              loses focus and fullscreen to permissions
+ *                              policy, gets whatever width the page has left,
+ *                              and costs this page a frame-src exception plus
+ *                              a script. A link costs none of that.
  * /demo/blueprint.json         WordPress Playground blueprint (CORS: read by
  *                              playground.wordpress.net, a different origin).
  * /demo/glidepress-slider.zip  The latest published release, unauthenticated
@@ -798,8 +803,14 @@ async function handlePage(request, env, url) {
 
 	const latest = await latestRelease(env);
 	const versionNote = latest
-		? `You are running version ${latest.version} — the same archive the Composer repository serves.`
-		: "No release has been published yet, so the editor below will start without the plugin.";
+		? `You will be running version ${latest.version} — the same archive the Composer repository serves.`
+		: "No release has been published yet, so the editor will start without the plugin.";
+
+	// Playground reads the blueprint from this query parameter and fetches it
+	// back off this origin, which is why /demo/blueprint.json is CORS-enabled.
+	const PLAYGROUND_URL = `${PLAYGROUND_ORIGIN}/?blueprint-url=${encodeURIComponent(
+		`${url.origin}/demo/blueprint.json`
+	)}`;
 
 	const html = `<!doctype html>
 <html lang="en">
@@ -827,10 +838,10 @@ ${siteHeader("/demo")}
 			<p class="kicker">Live demo</p>
 			<h1>A real editor, not a screenshot.</h1>
 			<p class="section__lead">
-				The button below boots an actual WordPress &mdash; PHP compiled to
-				WebAssembly &mdash; inside this page, with GlidePress installed and a
-				kitchen-sink post already written: a dozen sliders, one per feature,
-				from the four effects to autoplay, peeking neighbours, styled
+				The link below opens an actual WordPress &mdash; PHP compiled to
+				WebAssembly, running in your browser &mdash; with GlidePress installed
+				and a kitchen-sink post already written: a dozen sliders, one per
+				feature, from the four effects to autoplay, peeking neighbours, styled
 				controls and per-breakpoint visibility. Select any of them and its
 				settings are right there in the sidebar.
 			</p>
@@ -841,36 +852,19 @@ ${siteHeader("/demo")}
 				effects and autoplay actually move.
 			</p>
 
-			<div class="demo-launch" id="launch">
-				<button class="btn" type="button" id="launch-button"
-					data-playground="${PLAYGROUND_ORIGIN}"
-					data-blueprint="${url.origin}/demo/blueprint.json">Launch the editor</button>
+			<div class="demo-launch">
+				<p class="demo-launch__cta">
+					<a class="btn" href="${PLAYGROUND_URL}" target="_blank" rel="noopener external">Open the editor</a>
+					<span class="quiet-link">opens playground.wordpress.net in a new tab</span>
+				</p>
 				<p class="footnote">
 					Roughly 40&nbsp;MB and a few seconds to start. Everything runs on
 					your machine &mdash; nothing is uploaded, nothing is saved, and
-					reloading this page throws the whole site away.
+					closing the tab throws the whole site away. Best on a desktop
+					browser; it asks a lot of a phone.
 					${versionNote}
 				</p>
 			</div>
-
-		</div>
-
-		<!-- Outside .wrap (700px): the block editor drops its inspector into a
-		     cramped overlay well before that, so the stage runs near-full-bleed. -->
-		<div class="demo-stage" id="playground" hidden>
-			<div class="demo-stage__bar">
-				<p class="demo-stage__hint">A throwaway WordPress, running in this tab.</p>
-				<button class="demo-stage__button" type="button" id="fullscreen-button">Full screen</button>
-			</div>
-			<div class="demo-stage__frame" id="playground-frame"></div>
-		</div>
-
-		<div class="wrap">
-			<p class="footnote" id="fallback">
-				Prefer it full screen?
-				<a href="${PLAYGROUND_ORIGIN}/?blueprint-url=${encodeURIComponent(`${url.origin}/demo/blueprint.json`)}" rel="external">Open the demo at playground.wordpress.net</a>.
-				Best on a desktop browser &mdash; it asks a lot of a phone.
-			</p>
 		</div>
 	</section>
 
@@ -898,18 +892,15 @@ ${siteHeader("/demo")}
 
 ${SITE_FOOTER}
 
-<script src="/assets/demo.js" defer></script>
 </body>
 </html>
 `;
 
-	return new Response(html, {
-		headers: htmlHeaders({
-			cacheControl: "public, max-age=300",
-			// The one page on the site that frames another origin.
-			csp: `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-src ${PLAYGROUND_ORIGIN}`,
-		}),
-	});
+	// No CSP exception and no script: the page is a link, so Playground runs on
+	// its own origin in its own tab. Framing it needed frame-src plus a script
+	// to build the iframe, and cost the editor the permissions an embedded
+	// cross-origin frame doesn't get (focus, fullscreen) along with the width.
+	return new Response(html, { headers: htmlHeaders({ cacheControl: "public, max-age=300" }) });
 }
 
 export async function handleDemo(request, env, url) {

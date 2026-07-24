@@ -290,21 +290,30 @@ describe("Live demo", () => {
 		await env.REPO.put("dist:5.0.0", "PK-older");
 	}
 
-	it("serves the page without auth, framing only the Playground origin", async () => {
+	it("serves the page without auth and links straight to Playground", async () => {
 		await seedReleases();
 		const res = await fetchWorker("/demo");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
 		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
-		// The one page that frames another origin — everything else stays 'self'.
-		const csp = res.headers.get("Content-Security-Policy");
-		expect(csp).toContain("frame-src https://playground.wordpress.net");
-		expect(csp).toContain("script-src 'self'");
 
 		const html = await res.text();
-		expect(html).toContain('data-blueprint="https://glidepress.example.com/demo/blueprint.json"');
+		// The link carries the blueprint URL; Playground fetches it back off
+		// this origin, which is what /demo/blueprint.json's CORS is for.
+		const blueprint = encodeURIComponent("https://glidepress.example.com/demo/blueprint.json");
+		expect(html).toContain(`https://playground.wordpress.net/?blueprint-url=${blueprint}`);
 		// Tells the visitor what they're about to run.
 		expect(html).toContain("5.1.0");
+	});
+
+	it("needs no frame-src or scripts of its own now that nothing is embedded", async () => {
+		await seedReleases();
+		const res = await fetchWorker("/demo");
+		const csp = res.headers.get("Content-Security-Policy");
+		// Same policy as every other page: the page is a link, not a host.
+		expect(csp).not.toContain("frame-src");
+		expect(csp).toContain("default-src 'self'");
+		expect(await res.text()).not.toContain("<script");
 	});
 
 	it("serves the newest release zip publicly, with CORS for the Playground origin", async () => {

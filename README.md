@@ -26,15 +26,18 @@ One Cloudflare Worker serving two things on the same domain:
   aren't sensitive — but sha1 hashes and dist URLs are never rendered.
   Listed in `run_worker_first` so browser navigations reach the Worker
   instead of the 404 page. Cached for 5 minutes (`max-age=300`).
-- **`/demo`** — live editable demo. Boots [WordPress
+- **`/demo`** — live editable demo. Links out to [WordPress
   Playground](https://wordpress.org/playground/) (WordPress + PHP compiled to
-  WebAssembly) in an iframe on click, with the plugin installed and a
+  WebAssembly) in a new tab, with the plugin installed and a
   kitchen-sink post seeded in — twelve sliders, one per feature (the four
   effects, autoplay with its pause button, overflow peek, styled controls,
   equal height, per-breakpoint slide visibility, full-width alignment) — so
   visitors drive the real block editor and the real frontend rather than a
   mock-up. The editor lays slides out side by side rather than running Swiper,
-  so the page copy pushes visitors to publish and view. Three Worker routes:
+  so the page copy pushes visitors to publish and view. Playground is *linked*,
+  not framed: a cross-origin iframe loses focus and fullscreen to permissions
+  policy and gets only the width the page has left, and framing it would cost
+  this page a `frame-src` exception plus a script. Three Worker routes:
   the page, `/demo/blueprint.json` (the Playground blueprint, CORS-enabled
   because it's read from the Playground origin), and
   `/demo/glidepress-slider.zip` — **the newest release, unauthenticated** so
