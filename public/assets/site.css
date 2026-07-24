@@ -29,13 +29,13 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--paper: #191712;
+		--paper: #15120d;
 		--ink: #eae6dc;
-		--ink-soft: #9d968a;
-		--line: #37332a;
+		--ink-soft: #a89f90;
+		--line: #4a4433;
 		--accent: #8fa3ee;
-		--accent-wash: #232637;
-		--card: #201d17;
+		--accent-wash: #262a3d;
+		--card: #242017;
 	}
 }
 
@@ -301,32 +301,47 @@ kbd {
 
 /* Swiper chrome — understated */
 
+.gp-demo { --swiper-navigation-sides-offset: 18px; }
+
 .gp-demo .swiper-button-prev,
 .gp-demo .swiper-button-next {
-	width: 42px;
-	height: 42px;
-	border: 1px solid rgba(245, 241, 232, 0.6);
+	width: 44px;
+	height: 44px;
+	border: 0;
 	border-radius: 50%;
-	background: rgba(20, 18, 14, 0.4);
-	-webkit-backdrop-filter: blur(6px);
-	backdrop-filter: blur(6px);
+	background: rgba(20, 18, 14, 0.55);
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
 	color: var(--cream);
 	cursor: pointer;
-	transition: background 0.15s ease, border-color 0.15s ease;
+	transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .gp-demo .swiper-button-prev:hover,
 .gp-demo .swiper-button-next:hover {
-	background: rgba(20, 18, 14, 0.6);
-	border-color: var(--cream);
+	background: var(--cream);
+	color: var(--ink);
+	transform: scale(1.06);
 }
 
+/* Crisp custom chevron in place of Swiper's default icon-font glyph. */
 .gp-demo .swiper-button-prev::after,
-.gp-demo .swiper-button-next::after { font-size: 1.05rem; }
+.gp-demo .swiper-button-next::after {
+	content: "";
+	width: 9px;
+	height: 9px;
+	border: solid currentColor;
+	border-width: 2px 2px 0 0;
+}
+
+.gp-demo .swiper-button-next::after { transform: translateX(-2px) rotate(45deg); }
+.gp-demo .swiper-button-prev::after { transform: translateX(2px) rotate(-135deg); }
 
 @media (prefers-reduced-motion: reduce) {
 	.gp-demo .swiper-button-prev,
 	.gp-demo .swiper-button-next { transition: none; }
+	.gp-demo .swiper-button-prev:hover,
+	.gp-demo .swiper-button-next:hover { transform: none; }
 }
 
 .gp-demo .swiper-button-prev:focus-visible,
