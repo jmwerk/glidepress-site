@@ -9,13 +9,20 @@
  *                              a script. A link costs none of that.
  * /demo/blueprint.json         WordPress Playground blueprint (CORS: read by
  *                              playground.wordpress.net, a different origin).
- * /demo/glidepress-slider.zip  The latest published release, unauthenticated
- *                              (CORS) so the blueprint's installPlugin step
- *                              can fetch it. Deliberately public: Playground
- *                              runs entirely client-side, so there is nowhere
- *                              to put a token that a visitor couldn't read.
- *                              Everything else about distribution stays behind
- *                              /packages.json and /dist/* as before.
+ * /demo/glidepress-slider.zip  The latest release, for the blueprint's
+ *                              installPlugin step. Requires a signed,
+ *                              short-lived query string minted by the
+ *                              blueprint route; the bare URL is a 403, so
+ *                              there is no permanent public download to
+ *                              bookmark, hotlink, index or scrape.
+ *
+ *                              This is a raised bar, not a closed door.
+ *                              Playground runs client-side, so the browser
+ *                              must be able to fetch the zip, and anything
+ *                              the browser fetches a determined visitor can
+ *                              fetch too inside the window. /packages.json
+ *                              and /dist/* remain the only durable way to get
+ *                              the plugin, and are untouched.
  *
  * Nothing here is a re-implementation of the block: Playground compiles PHP to
  * WebAssembly and runs actual WordPress, so the editor, the inspector controls
@@ -30,10 +37,21 @@
  * silently start failing block validation the next time save() changed.
  */
 
+import {
+	hmacSha256Hex,
+	rateLimitExceeded,
+	timingSafeEqual,
+	tooManyRequests,
+} from "./security.js";
 import { FAVICON, SITE_FOOTER, htmlHeaders, siteHeader } from "./shell.js";
 
 const ZIP_PATH = "/demo/glidepress-slider.zip";
 const PLAYGROUND_ORIGIN = "https://playground.wordpress.net";
+
+// How long a minted download URL stays valid. Only has to cover the gap
+// between Playground reading the blueprint and fetching the zip out of it —
+// seconds apart — so this is already generous.
+const DOWNLOAD_TTL_SECONDS = 600;
 
 // ---------------------------------------------------------------------------
 // Files written into the Playground WordPress by the blueprint
@@ -698,6 +716,55 @@ function corsPreflight(request) {
 	return new Response(null, { status: 204, headers });
 }
 
+// ---------------------------------------------------------------------------
+// Signed download URLs
+// ---------------------------------------------------------------------------
+
+/**
+ * The blueprint hands Playground a URL that expires, rather than a permanent
+ * public one, so the plugin has no durable download address to bookmark,
+ * hotlink, index or scrape.
+ *
+ * This raises the bar; it cannot close the door. Playground runs entirely in
+ * the visitor's browser, so the browser must be able to fetch the zip, and
+ * anything the browser fetches a determined person can fetch too within the
+ * window. What it does remove is the *permanent* unauthenticated download —
+ * /packages.json and /dist/* remain the only durable way to get the plugin.
+ */
+function signingKey(env) {
+	// A dedicated secret if one is set, otherwise the admin secret — which
+	// production must already have for /admin to work at all. Rotating either
+	// invalidates outstanding URLs, which is harmless at a 10 minute TTL.
+	return env.DEMO_SIGNING_KEY || env.ADMIN_KEY || null;
+}
+
+async function signDownload(env, expiry) {
+	const key = signingKey(env);
+	if (!key) return null;
+	return hmacSha256Hex(key, `demo-zip:${expiry}`);
+}
+
+/** @return {string|null} An absolute, signed, expiring URL for the zip. */
+async function mintDownloadUrl(env, origin) {
+	const expiry = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_SECONDS;
+	const signature = await signDownload(env, expiry);
+	if (!signature) return null;
+	return `${origin}${ZIP_PATH}?expires=${expiry}&signature=${signature}`;
+}
+
+async function downloadUrlValid(request, env, url) {
+	const expiry = Number(url.searchParams.get("expires"));
+	const signature = url.searchParams.get("signature") || "";
+	if (!Number.isInteger(expiry) || !signature) return false;
+	if (expiry * 1000 < Date.now()) return false;
+
+	const expected = await signDownload(env, expiry);
+	// No key configured means nothing can be validly signed — fail closed
+	// rather than letting an unsigned request through.
+	if (!expected) return false;
+	return timingSafeEqual(signature, expected);
+}
+
 /** Newest published release, by the same ordering the changelog uses. */
 async function latestRelease(env) {
 	const versions = (await env.REPO.get("versions", "json")) || [];
@@ -710,9 +777,29 @@ async function latestRelease(env) {
  * Cached briefly rather than immutably: the URL is stable while the version
  * behind it moves, so a new release has to be able to take over.
  */
-async function handleZip(request, env) {
+async function handleZip(request, env, url) {
 	if (request.method !== "GET" && request.method !== "HEAD") {
 		return new Response("Method not allowed", { status: 405 });
+	}
+
+	// One unit per attempt, before any KV read, so neither a signature guess
+	// nor a scripted re-download of a still-valid URL is free. Shares the
+	// per-IP bucket with the Composer and admin routes (see the README) —
+	// 10/min is far above the one fetch a demo boot makes.
+	if (await rateLimitExceeded(request, env)) return tooManyRequests();
+
+	if (!(await downloadUrlValid(request, env, url))) {
+		return new Response(
+			"This download link is invalid or has expired. Start the demo from https://glidepress.jmwerk.com/demo.",
+			{
+				status: 403,
+				headers: {
+					"Content-Type": "text/plain; charset=utf-8",
+					"Cache-Control": "no-store",
+					"X-Robots-Tag": "noindex",
+				},
+			}
+		);
 	}
 
 	const latest = await latestRelease(env);
@@ -726,10 +813,11 @@ async function handleZip(request, env) {
 			"Content-Type": "application/zip",
 			"Content-Disposition": `attachment; filename="glidepress-slider-${latest.version}.zip"`,
 			"Access-Control-Allow-Origin": "*",
-			// No ETag here, unlike /dist/*: this URL's contents change when a
-			// release is published, and a Playground boot fetches it once, so
-			// there is nothing for a validator to save.
-			"Cache-Control": "public, max-age=300",
+			// Private and uncached: the URL carries a signature, so it must not
+			// sit in a shared cache where it would outlive the request it was
+			// minted for.
+			"Cache-Control": "private, no-store",
+			"X-Robots-Tag": "noindex",
 		},
 	});
 }
@@ -750,6 +838,23 @@ async function handleBlueprint(request, env, url) {
 		return new Response("Method not allowed", { status: 405 });
 	}
 
+	// Minted per request and short-lived, which is why this response must not
+	// be cached anywhere.
+	const downloadUrl = await mintDownloadUrl(env, url.origin);
+	if (!downloadUrl) {
+		return new Response(
+			JSON.stringify({ error: "demo downloads are not configured on this deployment" }),
+			{
+				status: 503,
+				headers: {
+					"Content-Type": "application/json",
+					"Access-Control-Allow-Origin": "*",
+					"Cache-Control": "no-store",
+				},
+			}
+		);
+	}
+
 	const blueprint = {
 		$schema: "https://playground.wordpress.net/blueprint-schema.json",
 		landingPage: "/wp-admin/post-new.php",
@@ -763,7 +868,7 @@ async function handleBlueprint(request, env, url) {
 			{ step: "login", username: "admin" },
 			{
 				step: "installPlugin",
-				pluginData: { resource: "url", url: `${url.origin}${ZIP_PATH}` },
+				pluginData: { resource: "url", url: downloadUrl },
 				options: { activate: true },
 			},
 			{
@@ -909,6 +1014,6 @@ export async function handleDemo(request, env, url) {
 
 	if (url.pathname === "/demo" || url.pathname === "/demo/") return handlePage(request, env, url);
 	if (url.pathname === "/demo/blueprint.json") return handleBlueprint(request, env, url);
-	if (url.pathname === ZIP_PATH) return handleZip(request, env);
+	if (url.pathname === ZIP_PATH) return handleZip(request, env, url);
 	return new Response("Not found", { status: 404 });
 }

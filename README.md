@@ -40,14 +40,26 @@ One Cloudflare Worker serving two things on the same domain:
   this page a `frame-src` exception plus a script. Three Worker routes:
   the page, `/demo/blueprint.json` (the Playground blueprint, CORS-enabled
   because it's read from the Playground origin), and
-  `/demo/glidepress-slider.zip` — **the newest release, unauthenticated** so
-  the blueprint's `installPlugin` step can fetch it. Playground runs entirely
-  client-side, so there is nowhere to hide a token from a visitor; this route
-  is the one place the plugin is downloadable without one. `/packages.json`
-  and `/dist/*` are unchanged. Because it always serves the newest release,
+  `/demo/glidepress-slider.zip` — the newest release, for the blueprint's
+  `installPlugin` step. Because it always serves the newest release,
   publishing a version updates the demo with no deploy. See `src/demo.js` for
   why the showcase content is built at runtime with `wp.blocks.createBlock`
   instead of stored as saved markup.
+
+  **The zip requires a signed, expiring URL.** The bare path is a `403`; the
+  blueprint route mints `?expires=…&signature=…` (HMAC-SHA256 over the expiry,
+  10 minute TTL) on every request, so the blueprint itself is `no-store` and
+  both routes are `noindex`. That removes the *permanent* public download —
+  nothing to bookmark, hotlink, index or scrape — but it cannot make the
+  plugin unobtainable: Playground runs client-side, so the browser must be
+  able to fetch the zip, and a visitor with devtools open can fetch it too
+  inside the window. `/packages.json` and `/dist/*` remain the only durable
+  way to get the plugin and are untouched.
+
+  Signing uses `DEMO_SIGNING_KEY` if set, otherwise `ADMIN_KEY`. With neither,
+  the blueprint returns `503` rather than falling back to an open download, so
+  the demo fails closed. Rotating either key invalidates outstanding URLs,
+  which at a 10 minute TTL is not worth thinking about.
 - **`/admin`** — admin UI. The page itself is a static asset
   (`public/admin/`); it talks to the Worker's `/admin/api/*` JSON routes,
   unlocked with the `ADMIN_KEY` worker secret. Two panels:
@@ -79,6 +91,10 @@ allowing 10 units per IP per 60 s. Over the limit → `429` with `Retry-After`.
   get a plain `401` and consume nothing.
 - **Admin API** (`/admin/api/*`): one unit per *failed* Bearer attempt only;
   valid-key requests never touch the limiter.
+- **Demo download** (`/demo/glidepress-slider.zip`): one unit per request,
+  before the signature is checked, so neither guessing a signature nor
+  re-pulling a still-valid URL is free. Shares the per-IP bucket with the
+  routes above; a demo boot spends one unit.
 
 Caveats (per Cloudflare docs): counters are per-colo and eventually
 consistent — this is brute-force protection, not exact accounting. The
@@ -103,8 +119,10 @@ download counts and the daily write-skip), the admin token API
 (create/validate/revoke, Bearer auth, disabled without `ADMIN_KEY`), the
 admin versions API (list with dist presence/size, release deletion), the
 public changelog page (ordering, notes escaping/formatting, no sha1/dist
-leakage, caching), and the demo routes (page CSP allowing only the Playground
-frame, newest-release zip with CORS, blueprint shape and seeded files).
+leakage, caching), and the demo routes (page markup and CSP, blueprint shape
+and seeded files, signed-download issue/verify including tampered signatures,
+swapped expiries, expired links and the no-secret fail-closed path, plus a
+simulation that runs the generated editor script against a stubbed `wp`).
 
 Tests invoke the Worker directly, which bypasses static-asset routing — so
 they can't catch a `run_worker_first` mistake that lets the 404 page swallow a

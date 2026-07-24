@@ -53,49 +53,20 @@
  */
 
 import { handleDemo } from "./demo.js";
+import {
+	RATE_LIMIT_PERIOD,
+	rateLimitExceeded,
+	sha256Hex,
+	timingSafeEqual,
+	tooManyRequests,
+} from "./security.js";
 import { FAVICON, SITE_FOOTER, htmlHeaders, siteHeader } from "./shell.js";
 
 const PACKAGE = "glidepress/glidepress-slider";
 
 // ---------------------------------------------------------------------------
-// Rate limiting
-// ---------------------------------------------------------------------------
-
-/**
- * Consumes one unit from the per-IP limiter and reports whether the caller is
- * over the limit. The ratelimit binding has no read-only probe — limit() is
- * the whole API — so every call both counts and checks. Counters are per
- * Cloudflare location and eventually consistent (fine for brute-force
- * protection, not exact accounting). Fails open if the binding is missing
- * (e.g. local dev against an older config).
- */
-async function rateLimitExceeded(request, env) {
-	if (!env.AUTH_RATE_LIMITER) return false;
-	// CF-Connecting-IP is always set on traffic that traverses Cloudflare;
-	// the fallback only matters in local dev, where all requests share a bucket.
-	const key = request.headers.get("CF-Connecting-IP") || "local";
-	const { success } = await env.AUTH_RATE_LIMITER.limit({ key });
-	return !success;
-}
-
-// Retry-After matches the limiter period configured in wrangler.toml.
-const RATE_LIMIT_PERIOD = "60";
-
-function tooManyRequests() {
-	return new Response("Too many requests", {
-		status: 429,
-		headers: { "Retry-After": RATE_LIMIT_PERIOD },
-	});
-}
-
-// ---------------------------------------------------------------------------
 // Composer-facing routes
 // ---------------------------------------------------------------------------
-
-async function sha256Hex(text) {
-	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 // Extracts the token from the basic-auth header without touching KV, so the
 // rate limiter can run between credential parsing and the token lookup.
@@ -355,14 +326,6 @@ ${SITE_FOOTER}
 // ---------------------------------------------------------------------------
 // Admin routes
 // ---------------------------------------------------------------------------
-
-function timingSafeEqual(a, b) {
-	const enc = new TextEncoder();
-	const ab = enc.encode(a);
-	const bb = enc.encode(b);
-	if (ab.byteLength !== bb.byteLength) return false;
-	return crypto.subtle.timingSafeEqual(ab, bb);
-}
 
 export function adminAuthorized(request, env) {
 	if (!env.ADMIN_KEY) return false; // secret not configured -> admin disabled

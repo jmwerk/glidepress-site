@@ -40,6 +40,19 @@ async function sha256Hex(text) {
 	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function hmacHex(key, message) {
+	const cryptoKey = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(key),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"]
+	);
+	const sig = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(message));
+	return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+
 const TOKEN = `gp_${"ab".repeat(24)}`; // gp_ + 48 hex chars, like real tokens
 
 async function seedToken(token = TOKEN) {
@@ -277,6 +290,11 @@ describe("Changelog page", () => {
 });
 
 describe("Live demo", () => {
+	// Signed download URLs are HMAC'd with ADMIN_KEY, so every demo request
+	// needs the secret present — without it the routes deliberately fail closed.
+	const demoFetch = (path, init = {}, overrides = {}) =>
+		fetchWorker(path, init, { ADMIN_KEY, ...overrides });
+
 	// A published release plus its zip, newest last so ordering is exercised.
 	async function seedReleases() {
 		await env.REPO.put(
@@ -292,7 +310,7 @@ describe("Live demo", () => {
 
 	it("serves the page without auth and links straight to Playground", async () => {
 		await seedReleases();
-		const res = await fetchWorker("/demo");
+		const res = await demoFetch("/demo");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
 		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
@@ -308,7 +326,7 @@ describe("Live demo", () => {
 
 	it("needs no frame-src or scripts of its own now that nothing is embedded", async () => {
 		await seedReleases();
-		const res = await fetchWorker("/demo");
+		const res = await demoFetch("/demo");
 		const csp = res.headers.get("Content-Security-Policy");
 		// Same policy as every other page: the page is a link, not a host.
 		expect(csp).not.toContain("frame-src");
@@ -316,20 +334,71 @@ describe("Live demo", () => {
 		expect(await res.text()).not.toContain("<script");
 	});
 
-	it("serves the newest release zip publicly, with CORS for the Playground origin", async () => {
+	/** Pulls the signed download URL the blueprint hands to Playground. */
+	async function signedZipPath() {
+		const blueprint = await (await demoFetch("/demo/blueprint.json")).json();
+		const install = blueprint.steps.find((s) => s.step === "installPlugin");
+		return new URL(install.pluginData.url).pathname + new URL(install.pluginData.url).search;
+	}
+
+	it("refuses the bare zip URL — there is no permanent public download", async () => {
 		await seedReleases();
-		const res = await fetchWorker("/demo/glidepress-slider.zip");
+		const res = await demoFetch("/demo/glidepress-slider.zip");
+		expect(res.status).toBe(403);
+		expect(res.headers.get("X-Robots-Tag")).toBe("noindex");
+	});
+
+	it("serves the newest release zip to a signed URL, with CORS for Playground", async () => {
+		await seedReleases();
+		const res = await demoFetch(await signedZipPath());
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("application/zip");
 		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		// Signed URLs must never sit in a shared cache.
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 		// Decoded rather than .text()'d: the runtime warns about reading a
 		// zip-typed body as text.
 		expect(new TextDecoder().decode(await res.arrayBuffer())).toBe("PK-newest");
 	});
 
+	it("rejects a tampered signature, a swapped expiry, and an expired link", async () => {
+		await seedReleases();
+		const signed = await signedZipPath();
+		const params = new URLSearchParams(signed.split("?")[1]);
+
+		// Flip the last character of the signature.
+		const signature = params.get("signature");
+		const tampered = signature.slice(0, -1) + (signature.endsWith("a") ? "b" : "a");
+		expect(
+			(await demoFetch(`/demo/glidepress-slider.zip?expires=${params.get("expires")}&signature=${tampered}`))
+				.status
+		).toBe(403);
+
+		// Extend the expiry while keeping the signature it was issued with.
+		const later = Number(params.get("expires")) + 86400;
+		expect(
+			(await demoFetch(`/demo/glidepress-slider.zip?expires=${later}&signature=${signature}`)).status
+		).toBe(403);
+
+		// A correctly signed but already-expired link.
+		const past = Math.floor(Date.now() / 1000) - 60;
+		const stale = await hmacHex(ADMIN_KEY, `demo-zip:${past}`);
+		expect(
+			(await demoFetch(`/demo/glidepress-slider.zip?expires=${past}&signature=${stale}`)).status
+		).toBe(403);
+	});
+
+	it("fails closed when no signing secret is configured", async () => {
+		await seedReleases();
+		// ADMIN_KEY absent => nothing can be validly signed, so the blueprint
+		// refuses to mint a URL rather than falling back to an open download.
+		const res = await demoFetch("/demo/blueprint.json", {}, { ADMIN_KEY: undefined });
+		expect(res.status).toBe(503);
+	});
+
 	it("builds a blueprint that installs that zip and seeds the editor", async () => {
 		await seedReleases();
-		const res = await fetchWorker("/demo/blueprint.json");
+		const res = await demoFetch("/demo/blueprint.json");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
 
@@ -337,8 +406,13 @@ describe("Live demo", () => {
 		expect(blueprint.landingPage).toBe("/wp-admin/post-new.php");
 
 		const install = blueprint.steps.find((s) => s.step === "installPlugin");
-		// Zip URL follows the request origin rather than a hardcoded hostname.
-		expect(install.pluginData.url).toBe("https://glidepress.example.com/demo/glidepress-slider.zip");
+		// Zip URL follows the request origin rather than a hardcoded hostname,
+		// and carries the signature and expiry that make it usable.
+		const zip = new URL(install.pluginData.url);
+		expect(zip.origin).toBe("https://glidepress.example.com");
+		expect(zip.pathname).toBe("/demo/glidepress-slider.zip");
+		expect(zip.searchParams.get("signature")).toMatch(/^[0-9a-f]{64}$/);
+		expect(Number(zip.searchParams.get("expires"))).toBeGreaterThan(Date.now() / 1000);
 		expect(install.options.activate).toBe(true);
 
 		const files = blueprint.steps.filter((s) => s.step === "writeFile");
@@ -355,7 +429,7 @@ describe("Live demo", () => {
 
 	it("seeds a kitchen sink covering every slider feature", async () => {
 		await seedReleases();
-		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
+		const blueprint = await (await demoFetch("/demo/blueprint.json")).json();
 		const seed = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
 
 		// Every effect, and the settings that are easy to forget to demo.
@@ -380,7 +454,7 @@ describe("Live demo", () => {
 
 	it("keeps seeded values inside the ranges the block sanitiser enforces", async () => {
 		await seedReleases();
-		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
+		const blueprint = await (await demoFetch("/demo/blueprint.json")).json();
 		const seed = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
 
 		// sanitizeSwiperConfig clamps out-of-range values silently, so a demo
@@ -413,7 +487,7 @@ describe("Live demo", () => {
 		// explicit opt-in; a 405 here means the demo can't run against
 		// `wrangler dev` at all. Deployed, these routes are never preflighted.
 		for (const path of ["/demo/blueprint.json", "/demo/glidepress-slider.zip"]) {
-			const res = await fetchWorker(path, {
+			const res = await demoFetch(path, {
 				method: "OPTIONS",
 				headers: {
 					Origin: "https://playground.wordpress.net",
@@ -428,7 +502,7 @@ describe("Live demo", () => {
 	});
 
 	it("omits the private-network opt-in when the preflight didn't ask for it", async () => {
-		const res = await fetchWorker("/demo/blueprint.json", {
+		const res = await demoFetch("/demo/blueprint.json", {
 			method: "OPTIONS",
 			headers: { Origin: "https://example.com", "Access-Control-Request-Method": "GET" },
 		});
@@ -445,7 +519,7 @@ describe("Live demo", () => {
 	 */
 	async function runSeed({ editorOverrides = {}, blocks = [], blockRegistered = true } = {}) {
 		await seedReleases();
-		const blueprint = await (await fetchWorker("/demo/blueprint.json")).json();
+		const blueprint = await (await demoFetch("/demo/blueprint.json")).json();
 		const source = blueprint.steps.find((s) => s.step === "writeFile" && s.path.endsWith(".js")).data;
 
 		const calls = { resetBlocks: null, editPost: null, selected: null, notices: [], created: 0 };
@@ -568,15 +642,15 @@ describe("Live demo", () => {
 			"versions",
 			JSON.stringify([{ version: "9.9.9", sha1: "c".repeat(40), time: "2026-08-01T00:00:00+00:00" }])
 		);
-		const res = await fetchWorker("/demo/glidepress-slider.zip");
+		const res = await demoFetch(await signedZipPath());
 		expect(res.status).toBe(404);
 	});
 
 	it("404s an unknown /demo path and rejects non-GET methods", async () => {
 		await seedReleases();
-		expect((await fetchWorker("/demo/nope")).status).toBe(404);
-		expect((await fetchWorker("/demo", { method: "POST" })).status).toBe(405);
-		expect((await fetchWorker("/demo/glidepress-slider.zip", { method: "POST" })).status).toBe(405);
+		expect((await demoFetch("/demo/nope")).status).toBe(404);
+		expect((await demoFetch("/demo", { method: "POST" })).status).toBe(405);
+		expect((await demoFetch("/demo/glidepress-slider.zip", { method: "POST" })).status).toBe(405);
 	});
 });
 
