@@ -292,7 +292,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			},
 			{
 				title: 'Arrows in the gutter',
-				note: 'Arrow placement is a sidebar control. Overlay is the default and lays the arrows over the slides; Gutter narrows the slides instead, so the arrows sit beside them and never cover any content.',
+				note: 'Arrow placement is a sidebar control with three modes. Inset is the default and pads only the slide content clear of the arrows; Gutter narrows the slides themselves, so the arrows sit beside them in the room that opens up and never cover any content at all.',
 				slider: slider(
 					{
 						align: 'wide',
@@ -313,7 +313,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			},
 			{
 				title: 'Arrows inset on a full-bleed slider',
-				note: 'Inset keeps the slides full width — the backgrounds still reach both edges — and pads only their content inward so the arrows clear it. With Overlay on a full-width slider the arrows would sit over the slide edges, or off screen entirely.',
+				note: 'Inset is the default placement: the slides stay full width — the backgrounds still reach both edges — and only their content is padded inward so the arrows clear it. Switch the panel to Overlay and the arrows drop back onto the slides, which on a full-width one means over whatever sits at the edge.',
 				slider: slider(
 					{
 						align: 'full',
@@ -490,7 +490,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			},
 			{
 				title: 'Full width',
-				note: 'Alignment is the standard block one: none, wide or full. This slider is full.',
+				note: 'Alignment is the standard block one: none, wide or full. This slider is full, so on the published page it runs the whole width of the screen rather than stopping at the content column.',
 				slider: slider(
 					{
 						align: 'full',
@@ -1177,7 +1177,7 @@ ${siteHeader("/demo")}
 				<li>Resize the window on that page: slides per view steps 3&rarr;2&rarr;1, and the <i>Hide a slide per breakpoint</i> section drops a different slide at each size.</li>
 				<li>Tab to a slider and use <kbd>&larr;</kbd> and <kbd>&rarr;</kbd>. Slide changes are announced.</li>
 				<li>Let the autoplay slider run, then hover it, then use its pause button.</li>
-				<li>Open the <b>Arrows</b> panel and switch <b>Placement</b> between Overlay, Inset and Gutter &mdash; the preview in the panel shows where the arrows land, and the two placement sections show it for real.</li>
+				<li>Open the <b>Arrows</b> panel and switch <b>Placement</b> between Inset (the default), Overlay and Gutter &mdash; the preview in the panel shows where the arrows land, and the two placement sections show it for real.</li>
 				<li>Back in the editor, switch <b>Effect</b> on any slider and watch the slides-per-view controls grey out for everything but Slide.</li>
 				<li>Select a single slide and change its background, padding, border or shadow &mdash; those are stock WordPress controls, not ours.</li>
 				<li>Add a block inside a slide: an image, a button, a heading, columns.</li>
