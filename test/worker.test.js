@@ -600,7 +600,7 @@ describe("Live demo", () => {
 		expect(calls.resetBlocks).not.toBeNull();
 
 		const sliders = calls.resetBlocks.filter((b) => b.name === "glidepress/slider");
-		expect(sliders).toHaveLength(20);
+		expect(sliders).toHaveLength(21);
 		// Every slider holds slides, and every slide holds real content blocks.
 		for (const slider of sliders) {
 			expect(slider.innerBlocks.length).toBeGreaterThan(2);

@@ -129,25 +129,50 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 		return wp.blocks.createBlock( 'glidepress/slide', attributes, inner );
 	}
 
+	/** The card look every seeded slide shares, in one of the palette colours. */
+	function cardStyle( index ) {
+		return {
+			color: {
+				background: PALETTE[ index % PALETTE.length ],
+				text: CREAM,
+			},
+			spacing: {
+				padding: {
+					top: '1.75rem',
+					right: '1.5rem',
+					bottom: '1.75rem',
+					left: '1.5rem',
+				},
+			},
+			border: { radius: '6px' },
+		};
+	}
+
 	/** A slide whose only variable is its background colour. */
 	function colourSlide( index, title, text ) {
 		return slide( title, text, {
 			contentSpacing: 'evenly',
-			style: {
-				color: {
-					background: PALETTE[ index % PALETTE.length ],
-					text: CREAM,
-				},
-				spacing: {
-					padding: {
-						top: '1.75rem',
-						right: '1.5rem',
-						bottom: '1.75rem',
-						left: '1.5rem',
-					},
-				},
-				border: { radius: '6px' },
-			},
+			style: cardStyle( index ),
+		} );
+	}
+
+	/**
+	 * A slide with its content parked by the content position control.
+	 *
+	 * Fixed height rather than auto: the vertical half of the control needs
+	 * spare room to place anything in, and an auto-height slide has none —
+	 * only the horizontal half would do anything at all.
+	 *
+	 * \`spacing\` is left empty by default so the position owns both axes.
+	 * Passing 'evenly' hands the vertical axis back to Vertical spacing,
+	 * which is how the two controls compose.
+	 */
+	function positionedSlide( index, position, title, text, spacing ) {
+		return slide( title, text, {
+			contentPosition: position,
+			contentSpacing: spacing || '',
+			slideHeight: '320px',
+			style: cardStyle( index ),
 		} );
 	}
 
@@ -448,6 +473,25 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 				),
 			},
 			{
+				title: 'Content anywhere on the slide',
+				note: 'Every slide carries the same nine-point position control the Cover block has, on its toolbar rather than in the sidebar. These four slides are otherwise identical: the first three park their content bottom left, dead centre and top right, and the fourth leaves Vertical spacing on as well — the spacing keeps the vertical axis and the position supplies only the horizontal, so the two never fight over the same one. This is a layout rather than a motion, so unlike the effects it shows itself here in the editor.',
+				slider: slider(
+					{
+						align: 'wide',
+						ariaLabel: 'Content position',
+						effect: 'slide',
+						loop: true,
+						equalHeight: true,
+					},
+					[
+						positionedSlide( 0, 'bottom left', 'Bottom left', 'The slide is a fixed 320px tall, so the vertical half of the control has somewhere to put this.' ),
+						positionedSlide( 1, 'center center', 'Centre', 'Centre visibly centres here: all three columns shrink to their content, where Cover leaves a centred container full width and the text still sits flush left.' ),
+						positionedSlide( 2, 'top right', 'Top right', 'Any corner, any edge, or the middle.' ),
+						positionedSlide( 3, 'center right', 'Composed with spacing', 'Vertical spacing set to Evenly and the position to centre right. The spacing owns the vertical axis and the position the horizontal.', 'evenly' ),
+					]
+				),
+			},
+			{
 				title: 'Hide a slide per breakpoint',
 				note: 'Each of these is hidden at one screen size. The editor always shows all three; on the published page the matching one is removed before Swiper counts the slides, so the pagination stays honest.',
 				slider: slider(
@@ -611,7 +655,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			},
 			{
 				title: 'A slider inside a slider',
-				note: 'One slide holds a slider of its own. Each slider drives only itself, so dragging or arrow-keying the inner one never moves the outer. Publish and view to see both run on their own.',
+				note: 'One slide holds a slider of its own. Each drives only itself: drag the inner one and the outer stays where it is, and the arrow keys belong to whichever slider you are actually inside — focus the inner one and they move it, leave it again and they go back to the outer. Publish and view to see both run on their own.',
 				slider: slider(
 					{
 						align: 'wide',
@@ -1140,11 +1184,12 @@ ${siteHeader("/demo")}
 			<p class="section__lead">
 				The link below opens an actual WordPress &mdash; PHP compiled to
 				WebAssembly, running in your browser &mdash; with GlidePress installed
-				and a kitchen-sink post already written: twenty sliders, one per
-				feature, from the four effects to autoplay, peeking neighbours, styled
-				controls, arrow placement, per-breakpoint visibility, the pagination
-				styles, advancing in groups and a slider nested inside another. Select
-				any of them and its settings are right there in the sidebar.
+				and a kitchen-sink post already written: twenty-one sliders, one
+				per feature, from the four effects to autoplay, peeking neighbours,
+				styled controls, arrow placement, content position, per-breakpoint
+				visibility, the pagination styles, advancing in groups and a slider
+				nested inside another. Select any of them and its settings are right
+				there in the sidebar.
 			</p>
 			<p class="section__lead">
 				The editor lays slides out side by side rather than running them, so
@@ -1180,7 +1225,9 @@ ${siteHeader("/demo")}
 				<li>Open the <b>Arrows</b> panel and switch <b>Placement</b> between Inset (the default), Overlay and Gutter &mdash; the preview in the panel shows where the arrows land, and the two placement sections show it for real.</li>
 				<li>Back in the editor, switch <b>Effect</b> on any slider and watch the slides-per-view controls grey out for everything but Slide.</li>
 				<li>Select a single slide and change its background, padding, border or shadow &mdash; those are stock WordPress controls, not ours.</li>
+				<li>Select a slide and press <b>Change content position</b> on its toolbar &mdash; the same nine-point matrix the Cover block uses. It moves the content in the editor straight away, no publishing needed.</li>
 				<li>Add a block inside a slide: an image, a button, a heading, columns.</li>
+				<li>Open the inserter, switch to <b>Patterns</b> and find the <b>GlidePress</b> category: a full-screen hero, a testimonial rotator, a logo strip, an image showcase with peek and a card carousel. Insert one and take it apart &mdash; each is a worked example of a configuration the settings panels support but don&rsquo;t suggest.</li>
 			</ul>
 			<p class="footnote">
 				This is the plugin exactly as shipped &mdash; the demo installs the
