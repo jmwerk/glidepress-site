@@ -276,7 +276,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			},
 			{
 				title: 'Peek at the neighbours',
-				note: 'Overflow lets the slides either side show past the edges. Slide effect only, and it keeps an extra looped slide on each side so the peek is never blank.',
+				note: 'Overflow lets the slides either side show past the edges, running out to the screen edges rather than stopping at the content column. Slide effect only. Where the slide count can carry it, a looped slider keeps an extra slide back to fill the gutters; below that the gutters take what the count leaves — two slides can only fill one, and one neither.',
 				slider: slider(
 					{
 						align: 'wide',
@@ -1220,6 +1220,7 @@ ${siteHeader("/demo")}
 			<ul class="plain-list">
 				<li><b>Publish it first.</b> Everything below is more interesting on the published page, where the sliders actually run.</li>
 				<li>Resize the window on that page: slides per view steps 3&rarr;2&rarr;1, and the <i>Hide a slide per breakpoint</i> section drops a different slide at each size.</li>
+				<li>Look at the edges of the <i>Peek at the neighbours</i> section on that page: the peeked slides run the full width of the window, while the slides themselves stay on the content column. Resize it and the gutters re-measure &mdash; the page never scrolls sideways.</li>
 				<li>Tab to a slider and use <kbd>&larr;</kbd> and <kbd>&rarr;</kbd>. Slide changes are announced.</li>
 				<li>Let the autoplay slider run, then hover it, then use its pause button.</li>
 				<li>Open the <b>Arrows</b> panel and switch <b>Placement</b> between Inset (the default), Overlay and Gutter &mdash; the preview in the panel shows where the arrows land, and the two placement sections show it for real.</li>

@@ -28,6 +28,7 @@
 			<a href="#details">Details</a>
 			<a href="#editor">Editor</a>
 			<a href="#accessibility">Accessibility</a>
+			<a href="#themes">Themes</a>
 			<a href="/changelog">Changelog</a>
 		</nav>
 	</div>
@@ -177,9 +178,19 @@
 				</div>
 				<div class="details__row">
 					<dt>Styling controls</dt>
-					<dd>Arrow and pagination colours, sizes and radii, equal-height
-					slides, and an overflow &ldquo;peek&rdquo; mode that shows a
-					sliver of the neighbouring slides.</dd>
+					<dd>Arrow and pagination colours, sizes and radii, plus
+					equal-height slides &mdash; set per slider, in the sidebar.</dd>
+				</div>
+				<div class="details__row">
+					<dt>Peek runs to the edges</dt>
+					<dd>Overflow mode shows a sliver of the neighbouring slides,
+					and that sliver reaches both screen edges rather than stopping
+					at your content column. The slides themselves stay on the
+					column, so nothing about the reading position moves &mdash;
+					only the gutters grow. The room either side is measured as the
+					page is laid out, and re-measured when it resizes, so a
+					scrollbar or a late-loading image can&rsquo;t leave the page
+					scrolling sideways.</dd>
 				</div>
 				<div class="details__row">
 					<dt>Where the content sits</dt>
@@ -204,6 +215,16 @@
 					<dd>These are static blocks &mdash; no server-side rendering,
 					no database options, no settings screen. Scripts and styles are
 					enqueued only on pages that actually contain a slider.</dd>
+				</div>
+				<div class="details__row">
+					<dt>When the script never runs</dt>
+					<dd>Scripting switched off, a blocked request, a rejected
+					CSP &mdash; every slide stays reachable. The viewport becomes a
+					scroll-snap container instead, handing the slides back one
+					swipe at a time through the browser&rsquo;s own scrolling.
+					Peeked sliders keep their gutters, and the arrows and
+					pagination are dropped rather than left driving a slider that
+					was never built.</dd>
 				</div>
 				<div class="details__row">
 					<dt>Suspicious by default</dt>
@@ -295,11 +316,53 @@
 		<div class="wrap">
 			<p class="footnote">
 				Also: pagination is never hidden from assistive technology while it
-				contains focusable buttons, and a slider saved without an ARIA
-				label falls back to a localised default rather than nothing. In a
-				right-to-left locale the arrows swap sides, the chevrons mirror and
-				the slides flow the other way &mdash; taken from the page
-				direction, so there is nothing to configure.
+				contains focusable buttons, its bullets are named rather than
+				reaching a screen reader as unlabelled buttons, and a slider saved
+				without an ARIA label falls back to a localised default rather than
+				nothing. In a right-to-left locale the arrows swap sides, the
+				chevrons mirror and the slides flow the other way &mdash; taken
+				from the page direction, so there is nothing to configure.
+			</p>
+		</div>
+	</section>
+
+	<!-- ======================= THEME INTEGRATION ======================== -->
+	<section class="section" id="themes">
+		<div class="wrap">
+			<h2>For themes that swap content out</h2>
+			<p class="section__lead">
+				A slider builds itself once, when the page is ready. If your theme
+				renders blocks after that &mdash; AJAX pagination, infinite scroll,
+				client-side routing &mdash; two events keep the sliders in step
+				with it.
+			</p>
+			<pre class="code"><code>// After injecting content: build what arrived, release what left.
+document.dispatchEvent(
+	new CustomEvent( 'glidepress-slider:refresh' )
+);
+
+// Before replacing a region, when nothing will re-scan afterwards.
+region.dispatchEvent(
+	new CustomEvent( 'glidepress-slider:destroy', { bubbles: true } )
+);</code></pre>
+			<p>
+				The target scopes the sweep: fire on a single slider and only that
+				one is touched, on a container and everything inside it is, on
+				<code>document</code> and all of them are. Both listeners sit on
+				the document, so an event fired on anything else needs
+				<code>bubbles</code>. Both are safe to fire repeatedly, and
+				<code>refresh</code> covers both directions &mdash; a theme already
+				firing it after pagination needs no second call.
+			</p>
+			<p class="footnote">
+				A slider taken down is left as the page was served: Swiper&rsquo;s
+				classes and inline styles gone, the author&rsquo;s own styles back,
+				and any slide the current breakpoint hides returned to the
+				document &mdash; so a later refresh builds it again from the same
+				markup. Teardown is also what releases the reduced-motion
+				listener, the breakpoint listeners and the observer behind the peek
+				breakout; a slider dropped from the page with neither event fired
+				leaves all three behind.
 			</p>
 		</div>
 	</section>

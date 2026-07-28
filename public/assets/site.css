@@ -212,6 +212,23 @@ kbd {
 	margin: 1.75rem 0 0;
 }
 
+/* Code sample. Scrolls inside itself rather than widening the page. */
+.code {
+	margin: 0 0 1.75rem;
+	padding: 1.1rem 1.25rem;
+	border: 1px solid var(--line);
+	background: var(--card);
+	overflow-x: auto;
+	line-height: 1.5;
+	tab-size: 4;
+}
+
+.code code {
+	background: none;
+	padding: 0;
+	border-radius: 0;
+}
+
 /* ---------------------------- live demo --------------------------- */
 
 .demo-launch {
