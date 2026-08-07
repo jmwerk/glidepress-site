@@ -3,7 +3,7 @@
 One Cloudflare Worker serving two things on the same domain:
 
 - **`/`** — the static showcase site (`public/`, no build step: plain HTML, CSS
-  and JS, plus the same Swiper 12 bundle the plugin ships, vendored into
+  and JS, plus the same Swiper 14 bundle the plugin ships, vendored into
   `public/vendor/`). Served via Workers static assets; `public/_headers`
   configures security headers and caching. `not_found_handling = "404-page"`
   serves `public/404.html` for browser navigations to unknown paths *without*
