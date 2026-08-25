@@ -68,9 +68,13 @@ const DOWNLOAD_TTL_SECONDS = 600;
  * 500-10000, arrow size 24-80, arrow radius 0-50, pagination size 4-24) — out
  * of range values are silently clamped, which would make the demo a liar.
  *
- * Note the editor lays slides out side by side rather than running Swiper, so
- * effects, autoplay, peek and responsive visibility only really show
- * themselves on the published page. The copy says so.
+ * The canvas itself still lays slides out side by side rather than running
+ * Swiper — but since 2.12.0 the plugin's own Live preview toolbar toggle runs
+ * the real frontend (save output, stylesheets and view.js) inside an iframe
+ * right there in the editor, so effects, autoplay and interaction show
+ * themselves without publishing. Peek and responsive visibility still don't:
+ * both key off real viewport width, which the editor's own canvas can't
+ * supply. The copy says so.
  */
 const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 ( function () {
@@ -655,7 +659,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 			},
 			{
 				title: 'A slider inside a slider',
-				note: 'One slide holds a slider of its own. Each drives only itself: drag the inner one and the outer stays where it is, and the arrow keys belong to whichever slider you are actually inside — focus the inner one and they move it, leave it again and they go back to the outer. Publish and view to see both run on their own.',
+				note: 'One slide holds a slider of its own. Each drives only itself: drag the inner one and the outer stays where it is, and the arrow keys belong to whichever slider you are actually inside — focus the inner one and they move it, leave it again and they go back to the outer. Turn on Live preview to see both run independently.',
 				slider: slider(
 					{
 						align: 'wide',
@@ -706,7 +710,7 @@ const SEED_SCRIPT = `/* GlidePress demo — seeds the kitchen-sink showcase. */
 	function buildDocument() {
 		var blocks = [
 			paragraph(
-				'Every section below is a real GlidePress slider, configured to show one thing. Select any slider and its settings appear in the sidebar. The editor lays slides out side by side rather than running them — <strong>publish the page and view it</strong> to see the effects, autoplay and responsive behaviour for real. You can also build a slider from an existing core Gallery: select one, open the block toolbar transform menu and choose GlidePress Slider — each image becomes its own slide, and the transform runs the other way too.'
+				'Every section below is a real GlidePress slider, configured to show one thing. Select any slider and its settings appear in the sidebar. The canvas itself lays slides out side by side, but <strong>select a slider and turn on Live preview in its toolbar</strong> to see it actually run &mdash; the real effects, autoplay, arrows and pagination, right here in the editor. Responsive behaviour (peek gutters, per-breakpoint visibility, slides-per-view stepping) still needs the real thing: <strong>publish the page and resize the window</strong> to see those. You can also build a slider from an existing core Gallery: select one, open the block toolbar transform menu and choose GlidePress Slider — each image becomes its own slide, and the transform runs the other way too.'
 			),
 		];
 
@@ -1165,7 +1169,7 @@ async function handlePage(request, env, url) {
 	<meta name="description" content="Try the GlidePress Slider block in a real WordPress block editor, running entirely in your browser. Nothing to install.">
 	<link rel="canonical" href="https://glidepress.jmwerk.com/demo">
 	<meta property="og:title" content="GlidePress Slider — live demo">
-	<meta property="og:description" content="A real WordPress block editor in your browser. Build a slider, then look at the published page.">
+	<meta property="og:description" content="A real WordPress block editor in your browser. Build a slider, then turn on Live preview to watch it run.">
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="https://glidepress.jmwerk.com/demo">
 	<meta property="og:image" content="https://glidepress.jmwerk.com/assets/og.png">
@@ -1192,10 +1196,12 @@ ${siteHeader("/demo")}
 				there in the sidebar.
 			</p>
 			<p class="section__lead">
-				The editor lays slides out side by side rather than running them, so
-				<b>publish the post and view it</b> &mdash; that page runs the same
-				Swiper&nbsp;12 frontend a real install would, and it&rsquo;s where the
-				effects and autoplay actually move.
+				The canvas lays slides out side by side, but select a slider and turn
+				on <b>Live preview</b> in its toolbar to watch it actually run &mdash;
+				the same Swiper&nbsp;14 frontend a real install would, right there in
+				the editor. <b>Publish the post and resize the window</b> to see the
+				parts that depend on real viewport width: peek gutters and
+				per-breakpoint behaviour.
 			</p>
 
 			<div class="demo-launch">
@@ -1218,11 +1224,11 @@ ${siteHeader("/demo")}
 		<div class="wrap">
 			<h2>What to try</h2>
 			<ul class="plain-list">
-				<li><b>Publish it first.</b> Everything below is more interesting on the published page, where the sliders actually run.</li>
-				<li>Resize the window on that page: slides per view steps 3&rarr;2&rarr;1, and the <i>Hide a slide per breakpoint</i> section drops a different slide at each size.</li>
-				<li>Look at the edges of the <i>Peek at the neighbours</i> section on that page: the peeked slides run the full width of the window, while the slides themselves stay on the content column. Resize it and the gutters re-measure &mdash; the page never scrolls sideways.</li>
-				<li>Tab to a slider and use <kbd>&larr;</kbd> and <kbd>&rarr;</kbd>. Slide changes are announced.</li>
-				<li>Let the autoplay slider run, then hover it, then use its pause button.</li>
+				<li><b>Select a slider and turn on Live preview</b>, in its toolbar. Effects, autoplay, arrows and pagination all run for real, right here in the editor.</li>
+				<li>Publish the post, then resize the window on that page: slides per view steps 3&rarr;2&rarr;1, and the <i>Hide a slide per breakpoint</i> section drops a different slide at each size. Live preview runs at the editor's own width, so this one needs the real page.</li>
+				<li>Look at the edges of the <i>Peek at the neighbours</i> section on the published page: the peeked slides run the full width of the window, while the slides themselves stay on the content column. Resize it and the gutters re-measure &mdash; the page never scrolls sideways.</li>
+				<li>Tab to a slider in Live preview and use <kbd>&larr;</kbd> and <kbd>&rarr;</kbd>. Slide changes are announced.</li>
+				<li>Let the autoplay slider run in Live preview, then hover it, then use its pause button.</li>
 				<li>Open the <b>Arrows</b> panel and switch <b>Placement</b> between Inset (the default), Overlay and Gutter &mdash; the preview in the panel shows where the arrows land, and the two placement sections show it for real.</li>
 				<li>Back in the editor, switch <b>Effect</b> on any slider and watch the slides-per-view controls grey out for everything but Slide.</li>
 				<li>Select a single slide and change its background, padding, border or shadow &mdash; those are stock WordPress controls, not ours.</li>
