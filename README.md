@@ -36,8 +36,12 @@ One Cloudflare Worker serving two things on the same domain:
   progress-bar pagination, pagination below the slides, advancing in groups,
   drag/swipe off, and a nested slider) — so
   visitors drive the real block editor and the real frontend rather than a
-  mock-up. The editor lays slides out side by side rather than running Swiper,
-  so the page copy pushes visitors to publish and view. Playground is *linked*,
+  mock-up. The canvas still lays slides out side by side rather than running
+  Swiper, but the plugin's own Live preview toolbar toggle (2.12.0+) runs the
+  real frontend in an iframe right there in the editor, so the page copy
+  points visitors at that first and only sends them to publish and resize
+  for the viewport-dependent parts (peek, per-breakpoint visibility).
+  Playground is *linked*,
   not framed: a cross-origin iframe loses focus and fullscreen to permissions
   policy and gets only the width the page has left, and framing it would cost
   this page a `frame-src` exception plus a script. Three Worker routes:
